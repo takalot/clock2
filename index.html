@@ -3,77 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת נוכחות</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <title>טעינת קבצים והצגת נתונים</title>
+    <script>
+        function loadFiles() {
+            const dataFile = document.getElementById("dataFile").files[0];
+            const workersFile = document.getElementById("workersFile").files[0];
+            const clocksFile = document.getElementById("clocksFile").files[0];
+            
+            if (!dataFile || !workersFile || !clocksFile) {
+                alert("נא להעלות את כל שלושת הקבצים");
+                return;
+            }
+
+            const readerData = new FileReader();
+            const readerWorkers = new FileReader();
+            const readerClocks = new FileReader();
+            
+            let workersMap = {};
+            let clocksMap = {};
+            
+            readerWorkers.onload = function(event) {
+                const lines = event.target.result.split('\n');
+                lines.forEach(line => {
+                    let [id, name] = line.trim().split(',');
+                    if (id && name) workersMap[id] = name;
+                });
+            };
+            readerClocks.onload = function(event) {
+                const lines = event.target.result.split('\n');
+                lines.forEach(line => {
+                    let [id, name] = line.trim().split(',');
+                    if (id && name) clocksMap[id] = name;
+                });
+            };
+            
+            readerData.onload = function(event) {
+                const lines = event.target.result.split('\n');
+                let tableBody = document.getElementById("dataTable").getElementsByTagName("tbody")[0];
+                tableBody.innerHTML = "";
+                
+                lines.forEach(line => {
+                    line = line.trim();
+                    if (line.length === 25) {
+                        let clockId = line.substring(0, 3);
+                        let entryType = line.substring(3, 4) === "1" ? "כניסה" : "יציאה";
+                        let date = line.substring(6, 12);
+                        let time = line.substring(12, 16);
+                        let workerId = line.substring(16, 25);
+                        
+                        let clockName = clocksMap[clockId] || clockId;
+                        let workerName = workersMap[workerId] || workerId;
+                        
+                        let row = `<tr>
+                            <td>${clockName}</td>
+                            <td>${entryType}</td>
+                            <td>${date}</td>
+                            <td>${time}</td>
+                            <td>${workerName}</td>
+                        </tr>`;
+                        tableBody.innerHTML += row;
+                    }
+                });
+            };
+            
+            readerWorkers.readAsText(workersFile);
+            readerClocks.readAsText(clocksFile);
+            readerData.readAsText(dataFile);
+        }
+    </script>
 </head>
 <body>
-    <h2>מערכת נוכחות</h2>
-    <input type="file" id="fileInput" accept=".dat">
-    <table id="attendanceTable" class="display">
+    <h2>העלה קבצים</h2>
+    <input type="file" id="dataFile" accept=".txt,.dat"><br>
+    <input type="file" id="workersFile" accept=".txt"><br>
+    <input type="file" id="clocksFile" accept=".txt"><br>
+    <button onclick="loadFiles()">טען נתונים</button>
+
+    <h2>נתונים</h2>
+    <table border="1" id="dataTable">
         <thead>
             <tr>
                 <th>שעון</th>
-                <th>עובד</th>
+                <th>סוג</th>
                 <th>תאריך</th>
                 <th>שעה</th>
-                <th>סטטוס</th>
+                <th>עובד</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    
-    <script>
-        const employees = {
-            "8705416": "aliu raji",
-            "3998520": "barbakdze manana",
-            "462811677": "besrat shishay",
-            "309725422": "אבבה בליינש שירה"
-        };
-        
-        const clocks = {
-            "121": "מתס בבוניה",
-            "115": "מתס דומה"
-        };
-        
-        document.getElementById('fileInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const lines = e.target.result.split('\n');
-                const tableBody = document.querySelector('#attendanceTable tbody');
-                tableBody.innerHTML = "";
-                
-                lines.forEach(line => {
-                    if (line.trim() === "") return;
-                    
-                    const clockID = line.substring(0, 3);
-                    const status = line.substring(5, 6) === "1" ? "כניסה" : "יציאה";
-                    const date = line.substring(7, 15).replace(/(\d{4})(\d{2})(\d{2})/, "$3/$2/$1");
-                    const time = line.substring(15, 19).replace(/(\d{2})(\d{2})/, "$1:$2");
-                    const empID = line.substring(17, 25);
-                    
-                    const clockName = clocks[clockID] || clockID;
-                    const empName = employees[empID] || empID;
-                    
-                    const row = `<tr>
-                        <td>${clockName}</td>
-                        <td>${empName}</td>
-                        <td>${date}</td>
-                        <td>${time}</td>
-                        <td>${status}</td>
-                    </tr>`;
-                    
-                    tableBody.innerHTML += row;
-                });
-                
-                $("#attendanceTable").DataTable();
-            };
-            reader.readAsText(file);
-        });
-    </script>
 </body>
 </html>
