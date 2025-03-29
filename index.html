@@ -3,84 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מנתח קובץ DAT</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <title>מערכת נוכחות</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
 </head>
 <body>
-    <h2>העלה קובץ DAT</h2>
+    <h2>מערכת נוכחות</h2>
     <input type="file" id="fileInput" accept=".dat">
-    <button onclick="downloadCSV()">📥 הורדת CSV</button>
-    
-    <table id="dataTable" class="display">
+    <table id="attendanceTable" class="display">
         <thead>
             <tr>
                 <th>שעון</th>
-                <th>סוג פעולה</th>
+                <th>עובד</th>
                 <th>תאריך</th>
                 <th>שעה</th>
-                <th>ID עובד</th>
+                <th>סטטוס</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-
+    
     <script>
-        document.getElementById('fileInput').addEventListener('change', handleFile);
+        const employees = {
+            "8705416": "aliu raji",
+            "3998520": "barbakdze manana",
+            "462811677": "besrat shishay",
+            "309725422": "אבבה בליינש שירה"
+        };
         
-        function handleFile(event) {
+        const clocks = {
+            "121": "מתס בבוניה",
+            "115": "מתס דומה"
+        };
+        
+        document.getElementById('fileInput').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (!file) return;
             
             const reader = new FileReader();
             reader.onload = function(e) {
                 const lines = e.target.result.split('\n');
-                const data = lines.map(line => parseLine(line.trim())).filter(row => row);
+                const tableBody = document.querySelector('#attendanceTable tbody');
+                tableBody.innerHTML = "";
                 
-                populateTable(data);
+                lines.forEach(line => {
+                    if (line.trim() === "") return;
+                    
+                    const clockID = line.substring(0, 3);
+                    const status = line.substring(5, 6) === "1" ? "כניסה" : "יציאה";
+                    const date = line.substring(7, 15).replace(/(\d{4})(\d{2})(\d{2})/, "$3/$2/$1");
+                    const time = line.substring(15, 19).replace(/(\d{2})(\d{2})/, "$1:$2");
+                    const empID = line.substring(17, 25);
+                    
+                    const clockName = clocks[clockID] || clockID;
+                    const empName = employees[empID] || empID;
+                    
+                    const row = `<tr>
+                        <td>${clockName}</td>
+                        <td>${empName}</td>
+                        <td>${date}</td>
+                        <td>${time}</td>
+                        <td>${status}</td>
+                    </tr>`;
+                    
+                    tableBody.innerHTML += row;
+                });
+                
+                $("#attendanceTable").DataTable();
             };
             reader.readAsText(file);
-        }
-        
-        function parseLine(line) {
-            if (line.length < 25) return null;
-            return {
-                clock: line.substring(0, 3),  // שעון
-                type: line.substring(3, 5) == '06' ? 'כניסה' : 'יציאה', // סוג פעולה
-                date: line.substring(5, 13).replace(/(\d{4})(\d{2})(\d{2})/, '$3/$2/$1'), // תאריך
-                time: line.substring(13, 17).replace(/(\d{2})(\d{2})/, '$1:$2'), // שעה
-                id: line.substring(17, 25) // ID עובד
-            };
-        }
-        
-        function populateTable(data) {
-            const tableBody = document.querySelector('#dataTable tbody');
-            tableBody.innerHTML = '';
-            
-            data.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${row.clock}</td><td>${row.type}</td><td>${row.date}</td><td>${row.time}</td><td>${row.id}</td>`;
-                tableBody.appendChild(tr);
-            });
-            
-            $('#dataTable').DataTable();
-        }
-        
-        function downloadCSV() {
-            let csvContent = "שעון,סוג פעולה,תאריך,שעה,ID עובד\n";
-            document.querySelectorAll('#dataTable tbody tr').forEach(row => {
-                let rowData = Array.from(row.children).map(cell => cell.innerText).join(",");
-                csvContent += rowData + "\n";
-            });
-            
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "data.csv";
-            link.click();
-        }
+        });
     </script>
 </body>
 </html>
