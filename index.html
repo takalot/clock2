@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2מערכת עיבוד נתוני נוכחות</title>
+    <title>מערכת עיבוד נתוני נוכחות</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -181,6 +181,13 @@
             reader.readAsText(file);
         }
         
+        // פונקציה לבדיקת תקינות השורה ולהדפסת מידע דיאגנוסטי
+        function debugStringFormat(str) {
+            let debug = "אורך שורה: " + str.length + "<br>";
+            debug += "מקטע ID (עמדות 16-25): [" + str.substring(16) + "]<br>";
+            return debug;
+        }
+        
         // פונקציה לעיבוד הנתונים
         function processData() {
             // איפוס הודעות
@@ -250,7 +257,15 @@
                     const year = '20' + trimmedLine.substring(10, 12);
                     const hour = trimmedLine.substring(12, 14);
                     const minute = trimmedLine.substring(14, 16);
-                    const personId = trimmedLine.substring(16, 25); // תיקון - לקיחת כל 9 הספרות
+                    
+                    // קריאת מספר העובד - בדיקה שהוא באורך 9
+                    let personId = "";
+                    if (trimmedLine.length >= 25) {
+                        personId = trimmedLine.substring(16, 25); // קריאת 9 תווים מעמדה 16
+                    } else {
+                        // אם השורה קצרה מדי, קח כמה שאפשר
+                        personId = trimmedLine.substring(16);
+                    }
                     
                     // בניית אובייקט הנתונים
                     const record = {
@@ -268,6 +283,7 @@
                     attendanceData.push(record);
                     linesProcessed++;
                 } catch (error) {
+                    console.error("שגיאה בעיבוד שורה:", error, trimmedLine);
                     errorsCount++;
                 }
             }
