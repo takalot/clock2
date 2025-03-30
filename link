@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הורדה אוטומטית מגוגל דרייב</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
+        .info { margin-top: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>הורדה אוטומטית מגוגל דרייב</h1>
+    <p id="status">מתחיל הורדה אוטומטית...</p>
+    <div class="info" id="lastDownload"></div>
+
+    <script>
+        const FILE_URL = "https://drive.google.com/file/d/19mKb2jSMI59M3pjeIEr6NlSaB8yhAAAk/view?usp=sharing";
+        const DOWNLOAD_INTERVAL = 3600000; // כל שעה (במילישניות)
+
+        async function downloadFile() {
+            try {
+                const response = await fetch(FILE_URL);
+                if (!response.ok) throw new Error("שגיאה בהורדה");
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = 'filename.ext'; // החלף לשם הקובץ הרצוי
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                a.remove();
+
+                const now = new Date();
+                document.getElementById('lastDownload').textContent = 
+                    `הורד אחרונה: ${now.toLocaleString('he-IL')}`;
+                document.getElementById('status').textContent = "ההורדה הושלמה!";
+            } catch (error) {
+                document.getElementById('status').textContent = `שגיאה: ${error.message}`;
+            }
+        }
+
+        // הורד ראשוני
+        downloadFile();
+
+        // הגדר טיימר להורדה אוטומטית
+        setInterval(downloadFile, DOWNLOAD_INTERVAL);
+    </script>
+</body>
+</html>
