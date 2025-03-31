@@ -6,7 +6,7 @@ const App = () => {
   const [driveFileId, setDriveFileId] = useState(null);
   
   // Function to extract file ID from Google Drive URL
-  const extractFileId = (url) => {
+  /*const extractFileId = (url) => {
     const regex = /\/d\/([a-zA-Z0-9_-]+)/;
     const match = url.match(regex);
     return match ? match[1] : null;
@@ -18,7 +18,7 @@ const App = () => {
     setDriveFileId(fileId);
     setPage('loader');
   };
-  
+  */
   // Return to home page
   const navigateToHome = () => {
     setPage('home');
