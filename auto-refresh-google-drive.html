@@ -333,144 +333,154 @@
             dataTable.draw();
         }
         
-        // פונקציה לקריאת הקובץ
-        function fetchFileContent() {
-            const fileUrl = fileUrlInput.value.trim();
+// החלף את פונקציית fetchFileContent המקורית בפונקציה החדשה הזו
+function fetchFileContent() {
+    const fileUrl = fileUrlInput.value.trim();
+    
+    if (!fileUrl) {
+        addToLog('שגיאה: נא להזין קישור לקובץ');
+        return;
+    }
+    
+    try {
+        // וידוא שמדובר בקישור Google Drive
+        if (!fileUrl.includes('drive.google.com')) {
+            addToLog('שגיאה: הקישור אינו נראה כקישור של Google Drive');
+            return;
+        }
+        
+        // יצירת קישור ישיר
+        let directUrl = fileUrl;
+        
+        // אם זה קישור שיתוף רגיל, המרה לקישור ישיר
+        if (fileUrl.includes('/file/d/')) {
+            const fileId = fileUrl.split('/file/d/')[1].split('/')[0];
+            directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        } else if (fileUrl.includes('id=')) {
+            const fileId = new URL(fileUrl).searchParams.get('id');
+            directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        }
+        
+        // יצירת שם קובץ עם חותמת זמן
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `data_${timestamp}.txt`;
+        
+        addToLog('מוריד את הקובץ...');
+        
+        // הורדת הקובץ באמצעות קישור זמני
+        const downloadLink = document.createElement('a');
+        downloadLink.href = directUrl;
+        downloadLink.download = fileName;
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
+        
+        // שימוש באירוע לזיהוי סיום ההורדה (כאשר אפשרי)
+        downloadLink.onclick = function() {
+            addToLog('הורדה החלה. המתן לסיום ההורדה...');
             
-            if (!fileUrl) {
-                addToLog('שגיאה: נא להזין קישור לקובץ');
-                return;
-            }
-            
-            try {
-                // וידוא שמדובר בקישור Google Drive
-                if (!fileUrl.includes('drive.google.com')) {
-                    addToLog('שגיאה: הקישור אינו נראה כקישור של Google Drive');
-                    return;
+            // הוספת הודעה לבחירת הקובץ לאחר ההורדה
+            setTimeout(() => {
+                // יצירת אלמנט בחירת קובץ זמני
+                addToLog('נא לבחור את הקובץ שהורדת זה עתה');
+                
+                const fileSelector = document.createElement('input');
+                fileSelector.type = 'file';
+                fileSelector.accept = '.txt';
+                fileSelector.style.margin = '10px';
+                fileSelector.style.display = 'block';
+                
+                // הוספת כפתור "בחר קובץ" זמני
+                const fileSelectorContainer = document.createElement('div');
+                fileSelectorContainer.id = 'file-selector-container';
+                fileSelectorContainer.style.margin = '15px 0';
+                fileSelectorContainer.appendChild(fileSelector);
+                
+                // מחיקת אלמנט בחירת קובץ קודם אם קיים
+                const existingContainer = document.getElementById('file-selector-container');
+                if (existingContainer) {
+                    existingContainer.remove();
                 }
                 
-                // יצירת קישור ישיר
-                let directUrl = fileUrl;
+                // הוספת אלמנט בחירת הקובץ לדף
+                logElement.parentNode.insertBefore(fileSelectorContainer, logElement);
                 
-                // אם זה קישור שיתוף רגיל, המרה לקישור ישיר
-                if (fileUrl.includes('/file/d/')) {
-                    const fileId = fileUrl.split('/file/d/')[1].split('/')[0];
-                    directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                } else if (fileUrl.includes('id=')) {
-                    const fileId = new URL(fileUrl).searchParams.get('id');
-                    directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                }
-                
-                addToLog('מתחיל קריאת קובץ...');
-                
-                // שימוש ב-fetch לקריאת הקובץ
-                fetch(directUrl)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
+                // קריאת הקובץ שנבחר
+                fileSelector.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        addToLog('לא נבחר קובץ');
+                        return;
+                    }
+                    
+                    addToLog(`נבחר קובץ: ${file.name}`);
+                    
+                    // קריאת הקובץ ועיבודו
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const content = e.target.result;
+                            addToLog('קובץ נקרא בהצלחה');
+                            
+                            // שמירת עותק מקומי של הקובץ (Delta 1)
+                            saveLocalCopy(content, 'original_' + fileName);
+                            
+                            // עיבוד תוכן הקובץ
+                            processFileContent(content);
+                            
+                            // שמירת נתונים מעובדים (Delta 2)
+                            saveLocalCopy(JSON.stringify(allData, null, 2), 'processed_' + fileName.replace('.txt', '.json'));
+                            
+                            // הסרת אלמנט בחירת הקובץ לאחר העיבוד
+                            fileSelectorContainer.remove();
+                            
+                            // קביעת זמן הרענון הבא
+                            const intervalMinutes = parseInt(refreshIntervalInput.value, 10) || 60;
+                            nextRefreshTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
+                            updateStatus();
+                            
+                            // קביעת טיימר לרענון הבא
+                            timer = setTimeout(fetchFileContent, intervalMinutes * 60 * 1000);
+                        } catch (error) {
+                            addToLog(`שגיאה בעיבוד הקובץ: ${error.message}`);
                         }
-                        return response.text();
-                    })
-                    .then(data => {
-                        addToLog('קובץ נקרא בהצלחה');
-                        processFileContent(data);
-                        
-                        // קביעת זמן הרענון הבא
-                        const intervalMinutes = parseInt(refreshIntervalInput.value, 10) || 60;
-                        nextRefreshTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
-                        updateStatus();
-                        
-                        // קביעת טיימר לרענון הבא
-                        timer = setTimeout(fetchFileContent, intervalMinutes * 60 * 1000);
-                    })
-                    .catch(error => {
-                        addToLog(`שגיאה בקריאת הקובץ: ${error.message}`);
-                    });
-                
-            } catch (error) {
-                addToLog(`שגיאה כללית: ${error.message}`);
-            }
-        }
+                    };
+                    
+                    reader.onerror = function() {
+                        addToLog('שגיאה בקריאת הקובץ');
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            }, 1000); // מתן זמן למשתמש להורדה
+        };
         
-        // פונקציה לייצוא הנתונים ל-CSV
-        function exportToCsv() {
-            if (allData.length === 0) {
-                addToLog('אין נתונים לייצוא');
-                return;
-            }
-            
-            // יצירת כותרות ה-CSV
-            let csvContent = 'שעון,כניסה/יציאה,תאריך,שעה,מזהה (ID),שורה מקורית\n';
-            
-            // הוספת כל השורות
-            allData.forEach(item => {
-                const row = [
-                    item.clock,
-                    item.inOut,
-                    item.date,
-                    item.time,
-                    item.id,
-                    item.originalLine
-                ].join(',');
-                csvContent += row + '\n';
-            });
-            
-            // יצירת קובץ לייצוא
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', 'data_export_' + new Date().toISOString().slice(0, 10) + '.csv');
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            addToLog('הנתונים יוצאו בהצלחה ל-CSV');
-        }
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
         
-        // התחלת קריאה אוטומטית
-        startBtn.addEventListener('click', () => {
-            if (!fileUrlInput.value.trim()) {
-                alert('נא להזין קישור לקובץ ב-Google Drive');
-                return;
-            }
-            
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            fileUrlInput.disabled = true;
-            refreshIntervalInput.disabled = true;
-            
-            addToLog('התחלת תהליך קריאה אוטומטי');
-            fetchFileContent();
-        });
+    } catch (error) {
+        addToLog(`שגיאה כללית: ${error.message}`);
+    }
+}
+
+// פונקציה חדשה לשמירת עותק מקומי של הקובץ (Delta)
+function saveLocalCopy(content, fileName) {
+    try {
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         
-        // עצירת הקריאה האוטומטית
-        stopBtn.addEventListener('click', () => {
-            if (timer) {
-                clearTimeout(timer);
-                timer = null;
-            }
-            
-            nextRefreshTime = null;
-            updateStatus();
-            
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            fileUrlInput.disabled = false;
-            refreshIntervalInput.disabled = false;
-            
-            addToLog('תהליך הקריאה האוטומטית הופסק');
-        });
-        
-        // רענון הטבלה ידנית
-        refreshTableBtn.addEventListener('click', updateTable);
-        
-        // סינון לפי תאריך
-        dateFilter.addEventListener('change', updateTable);
-        
-        // ייצוא ל-CSV
-        exportCsvBtn.addEventListener('click', exportToCsv);
+        addToLog(`נשמר עותק מקומי: ${fileName}`);
+    } catch (error) {
+        addToLog(`שגיאה בשמירת עותק מקומי: ${error.message}`);
+    }
+}
     </script>
 </body>
 </html>
