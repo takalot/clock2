@@ -1,52 +1,220 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>הורדה אוטומטית מגוגל דרייב</title>
+    <title>הורדה אוטומטית מ-Google Drive</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; direction: rtl; }
-        .info { margin-top: 20px; color: #666; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
+        .button {
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .button:hover {
+            background-color: #357ae8;
+        }
+        .log {
+            text-align: left;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        .settings {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .settings-row {
+            margin: 10px 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .settings-row label {
+            margin-left: 10px;
+            width: 150px;
+            text-align: left;
+        }
+        .settings-row input {
+            padding: 8px;
+            width: 300px;
+        }
     </style>
 </head>
 <body>
-    <h1>הורדה אוטומטית מגוגל דרייב</h1>
-    <p id="status">מתחיל הורדה אוטומטית...</p>
-    <div class="info" id="lastDownload"></div>
+    <h1>הורדה אוטומטית מ-Google Drive</h1>
+    
+    <div class="container">
+        <div class="settings">
+            <div class="settings-row">
+                <label for="fileUrl">קישור לקובץ:</label>
+                <input type="text" id="fileUrl" placeholder="הכנס קישור לקובץ ב-Google Drive" />
+            </div>
+            <div class="settings-row">
+                <label for="refreshInterval">זמן רענון (דקות):</label>
+                <input type="number" id="refreshInterval" value="60" min="1" max="1440" />
+            </div>
+        </div>
+        
+        <button class="button" id="startBtn">התחל הורדה אוטומטית</button>
+        <button class="button" id="stopBtn" disabled>הפסק</button>
+        
+        <div class="status" id="status">סטטוס: ממתין להתחלה</div>
+        
+        <div class="log" id="log"></div>
+    </div>
 
     <script>
-        const FILE_URL = "https://drive.google.com/file/d/19mKb2jSMI59M3pjeIEr6NlSaB8yhAAAk/view?usp=sharing";
-        const DOWNLOAD_INTERVAL = 3600000; // כל שעה (במילישניות)
-
-        async function downloadFile() {
+        // אובייקטים של ממשק המשתמש
+        const fileUrlInput = document.getElementById('fileUrl');
+        const refreshIntervalInput = document.getElementById('refreshInterval');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusElement = document.getElementById('status');
+        const logElement = document.getElementById('log');
+        
+        let timer = null;
+        let nextRefreshTime = null;
+        
+        // פונקציה להוספת רשומות ללוג
+        function addToLog(message) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timeString}] ${message}`;
+            logElement.prepend(logEntry);
+        }
+        
+        // פונקציה לעדכון סטטוס וזמן הרענון הבא
+        function updateStatus() {
+            if (!nextRefreshTime) {
+                statusElement.textContent = 'סטטוס: ממתין להתחלה';
+                return;
+            }
+            
+            const now = new Date();
+            const timeLeft = Math.max(0, nextRefreshTime - now);
+            const minutesLeft = Math.floor(timeLeft / (1000 * 60));
+            const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
+            
+            statusElement.textContent = `סטטוס: פעיל - הרענון הבא בעוד ${minutesLeft} דקות ו-${secondsLeft} שניות`;
+            
+            // עדכון בכל שנייה
+            setTimeout(updateStatus, 1000);
+        }
+        
+        // פונקציה להורדת הקובץ
+        function downloadFile() {
+            const fileUrl = fileUrlInput.value.trim();
+            
+            if (!fileUrl) {
+                addToLog('שגיאה: נא להזין קישור לקובץ');
+                return;
+            }
+            
             try {
-                const response = await fetch(FILE_URL);
-                if (!response.ok) throw new Error("שגיאה בהורדה");
+                // וידוא שמדובר בקישור Google Drive
+                if (!fileUrl.includes('drive.google.com')) {
+                    addToLog('שגיאה: הקישור אינו נראה כקישור של Google Drive');
+                    return;
+                }
                 
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
+                // יצירת קישור הורדה ישיר
+                let directUrl = fileUrl;
+                
+                // אם זה קישור שיתוף רגיל, המרה לקישור הורדה ישיר
+                if (fileUrl.includes('/file/d/')) {
+                    const fileId = fileUrl.split('/file/d/')[1].split('/')[0];
+                    directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                } else if (fileUrl.includes('id=')) {
+                    const fileId = new URL(fileUrl).searchParams.get('id');
+                    directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                }
+                
+                addToLog('מתחיל הורדת קובץ...');
+                
+                // יצירת אלמנט a להורדה
                 const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = 'filename.ext'; // החלף לשם הקובץ הרצוי
-                document.body.appendChild(a);
+                a.href = directUrl;
+                a.target = '_blank';
                 a.click();
-                window.URL.revokeObjectURL(downloadUrl);
-                a.remove();
-
-                const now = new Date();
-                document.getElementById('lastDownload').textContent = 
-                    `הורד אחרונה: ${now.toLocaleString('he-IL')}`;
-                document.getElementById('status').textContent = "ההורדה הושלמה!";
+                
+                addToLog('בקשת הורדה נשלחה בהצלחה');
+                
+                // קביעת זמן הרענון הבא
+                const intervalMinutes = parseInt(refreshIntervalInput.value, 10) || 60;
+                nextRefreshTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
+                updateStatus();
+                
+                // קביעת טיימר לרענון הבא
+                timer = setTimeout(downloadFile, intervalMinutes * 60 * 1000);
+                
             } catch (error) {
-                document.getElementById('status').textContent = `שגיאה: ${error.message}`;
+                addToLog(`שגיאה בהורדת הקובץ: ${error.message}`);
             }
         }
-
-        // הורד ראשוני
-        downloadFile();
-
-        // הגדר טיימר להורדה אוטומטית
-        setInterval(downloadFile, DOWNLOAD_INTERVAL);
+        
+        // התחלת ההורדה האוטומטית
+        startBtn.addEventListener('click', () => {
+            if (!fileUrlInput.value.trim()) {
+                alert('נא להזין קישור לקובץ ב-Google Drive');
+                return;
+            }
+            
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            fileUrlInput.disabled = true;
+            refreshIntervalInput.disabled = true;
+            
+            addToLog('התחלת תהליך הורדה אוטומטי');
+            downloadFile();
+        });
+        
+        // עצירת ההורדה האוטומטית
+        stopBtn.addEventListener('click', () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            
+            nextRefreshTime = null;
+            updateStatus();
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            fileUrlInput.disabled = false;
+            refreshIntervalInput.disabled = false;
+            
+            addToLog('תהליך ההורדה האוטומטית הופסק');
+        });
     </script>
 </body>
 </html>
