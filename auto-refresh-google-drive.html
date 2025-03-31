@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>הורדה אוטומטית מ-Google Drive</title>
+    <title>מערכת קריאת קובץ ועיבוד נתונים</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css">
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            text-align: center;
+            direction: rtl;
         }
         .container {
             border: 1px solid #ccc;
@@ -39,7 +40,7 @@
         }
         .log {
             text-align: left;
-            height: 200px;
+            height: 150px;
             overflow-y: auto;
             border: 1px solid #ccc;
             padding: 10px;
@@ -67,10 +68,44 @@
             padding: 8px;
             width: 300px;
         }
+        table.dataTable {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+        table.dataTable th, table.dataTable td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        table.dataTable th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        table.dataTable tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .dataTables_wrapper .dataTables_filter {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_info {
+            margin: 15px 0;
+        }
+        #data-container {
+            margin-top: 30px;
+            overflow-x: auto;
+        }
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
-    <h1>הורדה אוטומטית מ-Google Drive</h1>
+    <h1>מערכת קריאת קובץ ועיבוד נתונים</h1>
     
     <div class="container">
         <div class="settings">
@@ -84,25 +119,86 @@
             </div>
         </div>
         
-        <button class="button" id="startBtn">התחל הורדה אוטומטית</button>
+        <button class="button" id="startBtn">התחל קריאה אוטומטית</button>
         <button class="button" id="stopBtn" disabled>הפסק</button>
+        <button class="button" id="exportCsvBtn">ייצוא ל-CSV</button>
         
         <div class="status" id="status">סטטוס: ממתין להתחלה</div>
         
         <div class="log" id="log"></div>
+        
+        <div id="data-container">
+            <div class="table-controls">
+                <div>
+                    <button class="button" id="refreshTableBtn">רענן טבלה</button>
+                </div>
+                <div>
+                    <label for="dateFilter">סינון לפי תאריך: </label>
+                    <input type="date" id="dateFilter">
+                </div>
+            </div>
+            <table id="dataTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>שעון</th>
+                        <th>כניסה/יציאה</th>
+                        <th>תאריך</th>
+                        <th>שעה</th>
+                        <th>מזהה (ID)</th>
+                        <th>שורה מקורית</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- נתונים יוכנסו כאן דינמית -->
+                </tbody>
+            </table>
+        </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js"></script>
     <script>
         // אובייקטים של ממשק המשתמש
         const fileUrlInput = document.getElementById('fileUrl');
         const refreshIntervalInput = document.getElementById('refreshInterval');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const refreshTableBtn = document.getElementById('refreshTableBtn');
+        const dateFilter = document.getElementById('dateFilter');
         const statusElement = document.getElementById('status');
         const logElement = document.getElementById('log');
+        const tableBody = document.getElementById('tableBody');
         
         let timer = null;
         let nextRefreshTime = null;
+        let allData = [];
+        let dataTable = null;
+        
+        // אתחול DataTable
+        $(document).ready(function() {
+            dataTable = $('#dataTable').DataTable({
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                language: {
+                    "sProcessing":   "מעבד...",
+                    "sLengthMenu":   "הצג _MENU_ פריטים",
+                    "sZeroRecords":  "לא נמצאו רשומות מתאימות",
+                    "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
+                    "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
+                    "sInfoFiltered": "(מסונן מסך _MAX_ רשומות)",
+                    "sSearch":       "חיפוש:",
+                    "oPaginate": {
+                        "sFirst":    "ראשון",
+                        "sPrevious": "קודם",
+                        "sNext":     "הבא",
+                        "sLast":     "אחרון"
+                    }
+                }
+            });
+        });
         
         // פונקציה להוספת רשומות ללוג
         function addToLog(message) {
@@ -131,8 +227,114 @@
             setTimeout(updateStatus, 1000);
         }
         
-        // פונקציה להורדת הקובץ
-        function downloadFile() {
+        // פונקציה לפענוח הנתונים על פי הפורמט המוגדר
+        function parseLineData(line) {
+            if (!line || line.trim() === '') return null;
+            
+            try {
+                // המספרים בפורמט: 123=שעון, 45=0,6=1כניסה2יציאה, 789101112=תאריך, 13141516=שעה, 171819202122232425=ID
+                const clock = line.substring(0, 3);
+                const inOut = line.charAt(5) === '1' ? 'כניסה' : 'יציאה';
+                
+                // פענוח תאריך (789101112)
+                const dateStr = line.substring(6, 12);
+                const day = dateStr.substring(0, 2);
+                const month = dateStr.substring(2, 4);
+                const year = "20" + dateStr.substring(4, 6);
+                const formattedDate = `${day}/${month}/${year}`;
+                
+                // פענוח שעה (13141516)
+                const timeStr = line.substring(12, 16);
+                const hours = timeStr.substring(0, 2);
+                const minutes = timeStr.substring(2, 4);
+                const formattedTime = `${hours}:${minutes}`;
+                
+                // פענוח מזהה ID (171819202122232425)
+                const id = line.substring(16, 25);
+                
+                return {
+                    clock: clock,
+                    inOut: inOut,
+                    date: formattedDate,
+                    time: formattedTime,
+                    id: id,
+                    originalLine: line
+                };
+            } catch (err) {
+                addToLog(`שגיאה בפענוח שורה: ${line}. שגיאה: ${err.message}`);
+                return null;
+            }
+        }
+        
+        // פונקציה לייבוא הטקסט לתוך טבלה
+        function processFileContent(content) {
+            if (!content) {
+                addToLog('אין תוכן לעיבוד');
+                return;
+            }
+            
+            // פיצול הקובץ לשורות
+            const lines = content.split('\n');
+            addToLog(`נמצאו ${lines.length} שורות בקובץ`);
+            
+            // איפוס נתוני הטבלה
+            allData = [];
+            
+            // עיבוד כל שורה
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const parsedData = parseLineData(line);
+                    if (parsedData) {
+                        allData.push(parsedData);
+                    }
+                }
+            }
+            
+            // עדכון הטבלה
+            updateTable();
+            
+            addToLog(`עובדו ${allData.length} שורות בהצלחה`);
+        }
+        
+        // פונקציה לעדכון הטבלה
+        function updateTable() {
+            // ניקוי הטבלה הקיימת
+            dataTable.clear();
+            
+            // סינון לפי תאריך אם נבחר
+            let filteredData = allData;
+            const dateFilterValue = dateFilter.value;
+            
+            if (dateFilterValue) {
+                // המרת תאריך HTML לפורמט dd/mm/yyyy
+                const date = new Date(dateFilterValue);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const formattedDate = `${day}/${month}/${year}`;
+                
+                filteredData = allData.filter(item => item.date === formattedDate);
+            }
+            
+            // הוספת השורות המסוננות לטבלה
+            filteredData.forEach(item => {
+                dataTable.row.add([
+                    item.clock,
+                    item.inOut,
+                    item.date,
+                    item.time,
+                    item.id,
+                    item.originalLine
+                ]);
+            });
+            
+            // רענון התצוגה
+            dataTable.draw();
+        }
+        
+        // פונקציה לקריאת הקובץ
+        function fetchFileContent() {
             const fileUrl = fileUrlInput.value.trim();
             
             if (!fileUrl) {
@@ -147,10 +349,10 @@
                     return;
                 }
                 
-                // יצירת קישור הורדה ישיר
+                // יצירת קישור ישיר
                 let directUrl = fileUrl;
                 
-                // אם זה קישור שיתוף רגיל, המרה לקישור הורדה ישיר
+                // אם זה קישור שיתוף רגיל, המרה לקישור ישיר
                 if (fileUrl.includes('/file/d/')) {
                     const fileId = fileUrl.split('/file/d/')[1].split('/')[0];
                     directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
@@ -159,30 +361,75 @@
                     directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
                 }
                 
-                addToLog('מתחיל הורדת קובץ...');
+                addToLog('מתחיל קריאת קובץ...');
                 
-                // יצירת אלמנט a להורדה
-                const a = document.createElement('a');
-                a.href = directUrl;
-                a.target = '_blank';
-                a.click();
-                
-                addToLog('בקשת הורדה נשלחה בהצלחה');
-                
-                // קביעת זמן הרענון הבא
-                const intervalMinutes = parseInt(refreshIntervalInput.value, 10) || 60;
-                nextRefreshTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
-                updateStatus();
-                
-                // קביעת טיימר לרענון הבא
-                timer = setTimeout(downloadFile, intervalMinutes * 60 * 1000);
+                // שימוש ב-fetch לקריאת הקובץ
+                fetch(directUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        addToLog('קובץ נקרא בהצלחה');
+                        processFileContent(data);
+                        
+                        // קביעת זמן הרענון הבא
+                        const intervalMinutes = parseInt(refreshIntervalInput.value, 10) || 60;
+                        nextRefreshTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
+                        updateStatus();
+                        
+                        // קביעת טיימר לרענון הבא
+                        timer = setTimeout(fetchFileContent, intervalMinutes * 60 * 1000);
+                    })
+                    .catch(error => {
+                        addToLog(`שגיאה בקריאת הקובץ: ${error.message}`);
+                    });
                 
             } catch (error) {
-                addToLog(`שגיאה בהורדת הקובץ: ${error.message}`);
+                addToLog(`שגיאה כללית: ${error.message}`);
             }
         }
         
-        // התחלת ההורדה האוטומטית
+        // פונקציה לייצוא הנתונים ל-CSV
+        function exportToCsv() {
+            if (allData.length === 0) {
+                addToLog('אין נתונים לייצוא');
+                return;
+            }
+            
+            // יצירת כותרות ה-CSV
+            let csvContent = 'שעון,כניסה/יציאה,תאריך,שעה,מזהה (ID),שורה מקורית\n';
+            
+            // הוספת כל השורות
+            allData.forEach(item => {
+                const row = [
+                    item.clock,
+                    item.inOut,
+                    item.date,
+                    item.time,
+                    item.id,
+                    item.originalLine
+                ].join(',');
+                csvContent += row + '\n';
+            });
+            
+            // יצירת קובץ לייצוא
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'data_export_' + new Date().toISOString().slice(0, 10) + '.csv');
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            addToLog('הנתונים יוצאו בהצלחה ל-CSV');
+        }
+        
+        // התחלת קריאה אוטומטית
         startBtn.addEventListener('click', () => {
             if (!fileUrlInput.value.trim()) {
                 alert('נא להזין קישור לקובץ ב-Google Drive');
@@ -194,11 +441,11 @@
             fileUrlInput.disabled = true;
             refreshIntervalInput.disabled = true;
             
-            addToLog('התחלת תהליך הורדה אוטומטי');
-            downloadFile();
+            addToLog('התחלת תהליך קריאה אוטומטי');
+            fetchFileContent();
         });
         
-        // עצירת ההורדה האוטומטית
+        // עצירת הקריאה האוטומטית
         stopBtn.addEventListener('click', () => {
             if (timer) {
                 clearTimeout(timer);
@@ -213,8 +460,17 @@
             fileUrlInput.disabled = false;
             refreshIntervalInput.disabled = false;
             
-            addToLog('תהליך ההורדה האוטומטית הופסק');
+            addToLog('תהליך הקריאה האוטומטית הופסק');
         });
+        
+        // רענון הטבלה ידנית
+        refreshTableBtn.addEventListener('click', updateTable);
+        
+        // סינון לפי תאריך
+        dateFilter.addEventListener('change', updateTable);
+        
+        // ייצוא ל-CSV
+        exportCsvBtn.addEventListener('click', exportToCsv);
     </script>
 </body>
 </html>
