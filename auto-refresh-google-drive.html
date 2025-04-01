@@ -1,486 +1,89 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת קריאת קובץ ועיבוד נתונים</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css">
+    <title>קריאת קובץ DAT מגוגל דרייב</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            direction: rtl;
-        }
-        .container {
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .status {
-            margin: 20px 0;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #f0f0f0;
-        }
-        .button {
-            background-color: #4285F4;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 10px;
-        }
-        .button:hover {
-            background-color: #357ae8;
-        }
-        .log {
-            text-align: left;
-            height: 150px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-top: 20px;
-        }
-        .settings {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 20px 0;
-        }
-        .settings-row {
-            margin: 10px 0;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .settings-row label {
-            margin-left: 10px;
-            width: 150px;
-            text-align: left;
-        }
-        .settings-row input {
-            padding: 8px;
-            width: 300px;
-        }
-        table.dataTable {
-            width: 100%;
-            margin: 20px 0;
-            border-collapse: collapse;
-        }
-        table.dataTable th, table.dataTable td {
-            padding: 10px;
-            border: 1px solid #ddd;
-            text-align: center;
-        }
-        table.dataTable th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-        table.dataTable tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .dataTables_wrapper .dataTables_filter {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-        .dataTables_wrapper .dataTables_length,
-        .dataTables_wrapper .dataTables_info {
-            margin: 15px 0;
-        }
-        #data-container {
-            margin-top: 30px;
-            overflow-x: auto;
-        }
-        .table-controls {
-            display: flex;
-            justify-content: space-between;
-            margin: 20px 0;
-        }
+        body { font-family: Arial, sans-serif; direction: rtl; text-align: right; }
+        table { width: 100%; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>מערכת קריאת קובץ ועיבוד נתונים</h1>
-    
-    <div class="container">
-        <div class="settings">
-            <div class="settings-row">
-                <label for="fileUrl">קישור לקובץ:</label>
-                <input type="text" id="fileUrl" placeholder="הכנס קישור לקובץ ב-Google Drive" />
-            </div>
-            <div class="settings-row">
-                <label for="refreshInterval">זמן רענון (דקות):</label>
-                <input type="number" id="refreshInterval" value="60" min="1" max="1440" />
-            </div>
-        </div>
-        
-        <button class="button" id="startBtn">התחל קריאה אוטומטית</button>
-        <button class="button" id="stopBtn" disabled>הפסק</button>
-        <button class="button" id="exportCsvBtn">ייצוא ל-CSV</button>
-        
-        <div class="status" id="status">סטטוס: ממתין להתחלה</div>
-        
-        <div class="log" id="log"></div>
-        
-        <div id="data-container">
-            <div class="table-controls">
-                <div>
-                    <button class="button" id="refreshTableBtn">רענן טבלה</button>
-                </div>
-                <div>
-                    <label for="dateFilter">סינון לפי תאריך: </label>
-                    <input type="date" id="dateFilter">
-                </div>
-            </div>
-            <table id="dataTable" class="display" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>שעון</th>
-                        <th>כניסה/יציאה</th>
-                        <th>תאריך</th>
-                        <th>שעה</th>
-                        <th>מזהה (ID)</th>
-                        <th>שורה מקורית</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <!-- נתונים יוכנסו כאן דינמית -->
-                </tbody>
-            </table>
-        </div>
-    </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js"></script>
+    <h2>קרא קובץ DAT מגוגל דרייב</h2>
+    <input type="text" id="fileUrl" placeholder="הדבק כאן קישור שיתוף של Google Drive" size="50">
+    <button onclick="loadFile()">טען קובץ</button>
+    
+    <table id="dataTable" class="display">
+        <thead>
+            <tr>
+                <th>שעון</th>
+                <th>0</th>
+                <th>כניסה/יציאה</th>
+                <th>תאריך</th>
+                <th>שעה</th>
+                <th>ID</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
     <script>
-        // אובייקטים של ממשק המשתמש
-        const fileUrlInput = document.getElementById('fileUrl');
-        const refreshIntervalInput = document.getElementById('refreshInterval');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const exportCsvBtn = document.getElementById('exportCsvBtn');
-        const refreshTableBtn = document.getElementById('refreshTableBtn');
-        const dateFilter = document.getElementById('dateFilter');
-        const statusElement = document.getElementById('status');
-        const logElement = document.getElementById('log');
-        const tableBody = document.getElementById('tableBody');
-        
-        let timer = null;
-        let nextRefreshTime = null;
-        let allData = [];
-        let dataTable = null;
-        
-        // אתחול DataTable
-        $(document).ready(function() {
-            dataTable = $('#dataTable').DataTable({
-                paging: true,
-                searching: true,
-                ordering: true,
-                info: true,
-                language: {
-                    "sProcessing":   "מעבד...",
-                    "sLengthMenu":   "הצג _MENU_ פריטים",
-                    "sZeroRecords":  "לא נמצאו רשומות מתאימות",
-                    "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
-                    "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
-                    "sInfoFiltered": "(מסונן מסך _MAX_ רשומות)",
-                    "sSearch":       "חיפוש:",
-                    "oPaginate": {
-                        "sFirst":    "ראשון",
-                        "sPrevious": "קודם",
-                        "sNext":     "הבא",
-                        "sLast":     "אחרון"
-                    }
-                }
-            });
-        });
-        
-        // פונקציה להוספת רשומות ללוג
-        function addToLog(message) {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            const logEntry = document.createElement('div');
-            logEntry.textContent = `[${timeString}] ${message}`;
-            logElement.prepend(logEntry);
-        }
-        
-        // פונקציה לעדכון סטטוס וזמן הרענון הבא
-        function updateStatus() {
-            if (!nextRefreshTime) {
-                statusElement.textContent = 'סטטוס: ממתין להתחלה';
+        function loadFile() {
+            let fileUrl = document.getElementById("fileUrl").value;
+            if (!fileUrl.includes("drive.google.com")) {
+                alert("אנא הזן קישור תקין מקובץ Google Drive!");
                 return;
             }
-            
-            const now = new Date();
-            const timeLeft = Math.max(0, nextRefreshTime - now);
-            const minutesLeft = Math.floor(timeLeft / (1000 * 60));
-            const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
-            
-            statusElement.textContent = `סטטוס: פעיל - הרענון הבא בעוד ${minutesLeft} דקות ו-${secondsLeft} שניות`;
-            
-            // עדכון בכל שנייה
-            setTimeout(updateStatus, 1000);
-        }
-        
-        // פונקציה לפענוח הנתונים על פי הפורמט המוגדר
-        function parseLineData(line) {
-            if (!line || line.trim() === '') return null;
-            
-            try {
-                // המספרים בפורמט: 123=שעון, 45=0,6=1כניסה2יציאה, 789101112=תאריך, 13141516=שעה, 171819202122232425=ID
-                const clock = line.substring(0, 3);
-                const inOut = line.charAt(5) === '1' ? 'כניסה' : 'יציאה';
-                
-                // פענוח תאריך (789101112)
-                const dateStr = line.substring(6, 12);
-                const day = dateStr.substring(0, 2);
-                const month = dateStr.substring(2, 4);
-                const year = "20" + dateStr.substring(4, 6);
-                const formattedDate = `${day}/${month}/${year}`;
-                
-                // פענוח שעה (13141516)
-                const timeStr = line.substring(12, 16);
-                const hours = timeStr.substring(0, 2);
-                const minutes = timeStr.substring(2, 4);
-                const formattedTime = `${hours}:${minutes}`;
-                
-                // פענוח מזהה ID (171819202122232425)
-                const id = line.substring(16, 25);
-                
-                return {
-                    clock: clock,
-                    inOut: inOut,
-                    date: formattedDate,
-                    time: formattedTime,
-                    id: id,
-                    originalLine: line
-                };
-            } catch (err) {
-                addToLog(`שגיאה בפענוח שורה: ${line}. שגיאה: ${err.message}`);
-                return null;
-            }
-        }
-        
-        // פונקציה לייבוא הטקסט לתוך טבלה
-        function processFileContent(content) {
-            if (!content) {
-                addToLog('אין תוכן לעיבוד');
-                return;
-            }
-            
-            // פיצול הקובץ לשורות
-            const lines = content.split('\n');
-            addToLog(`נמצאו ${lines.length} שורות בקובץ`);
-            
-            // איפוס נתוני הטבלה
-            allData = [];
-            
-            // עיבוד כל שורה
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line) {
-                    const parsedData = parseLineData(line);
-                    if (parsedData) {
-                        allData.push(parsedData);
-                    }
-                }
-            }
-            
-            // עדכון הטבלה
-            updateTable();
-            
-            addToLog(`עובדו ${allData.length} שורות בהצלחה`);
-        }
-        
-        // פונקציה לעדכון הטבלה
-        function updateTable() {
-            // ניקוי הטבלה הקיימת
-            dataTable.clear();
-            
-            // סינון לפי תאריך אם נבחר
-            let filteredData = allData;
-            const dateFilterValue = dateFilter.value;
-            
-            if (dateFilterValue) {
-                // המרת תאריך HTML לפורמט dd/mm/yyyy
-                const date = new Date(dateFilterValue);
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const year = date.getFullYear();
-                const formattedDate = `${day}/${month}/${year}`;
-                
-                filteredData = allData.filter(item => item.date === formattedDate);
-            }
-            
-            // הוספת השורות המסוננות לטבלה
-            filteredData.forEach(item => {
-                dataTable.row.add([
-                    item.clock,
-                    item.inOut,
-                    item.date,
-                    item.time,
-                    item.id,
-                    item.originalLine
-                ]);
-            });
-            
-            // רענון התצוגה
-            dataTable.draw();
-        }
-        
-// החלף את פונקציית fetchFileContent המקורית בפונקציה החדשה הזו
-function fetchFileContent() {
-    const fileUrl = fileUrlInput.value.trim();
-    
-    if (!fileUrl) {
-        addToLog('שגיאה: נא להזין קישור לקובץ');
-        return;
-    }
-    
-    try {
-        // וידוא שמדובר בקישור Google Drive
-        if (!fileUrl.includes('drive.google.com')) {
-            addToLog('שגיאה: הקישור אינו נראה כקישור של Google Drive');
-            return;
-        }
-        
-        // יצירת קישור ישיר
-        let directUrl = fileUrl;
-        
-        // אם זה קישור שיתוף רגיל, המרה לקישור ישיר
-        if (fileUrl.includes('/file/d/')) {
-            const fileId = fileUrl.split('/file/d/')[1].split('/')[0];
-            directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-        } else if (fileUrl.includes('id=')) {
-            const fileId = new URL(fileUrl).searchParams.get('id');
-            directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-        }
-        
-        // יצירת שם קובץ עם חותמת זמן
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `data_${timestamp}.txt`;
-        
-        addToLog('מוריד את הקובץ...');
-        
-        // הורדת הקובץ באמצעות קישור זמני
-        const downloadLink = document.createElement('a');
-        downloadLink.href = directUrl;
-        downloadLink.download = fileName;
-        downloadLink.style.display = 'none';
-        document.body.appendChild(downloadLink);
-        
-        // שימוש באירוע לזיהוי סיום ההורדה (כאשר אפשרי)
-        downloadLink.onclick = function() {
-            addToLog('הורדה החלה. המתן לסיום ההורדה...');
-            
-            // הוספת הודעה לבחירת הקובץ לאחר ההורדה
-            setTimeout(() => {
-                // יצירת אלמנט בחירת קובץ זמני
-                addToLog('נא לבחור את הקובץ שהורדת זה עתה');
-                
-                const fileSelector = document.createElement('input');
-                fileSelector.type = 'file';
-                fileSelector.accept = '.txt';
-                fileSelector.style.margin = '10px';
-                fileSelector.style.display = 'block';
-                
-                // הוספת כפתור "בחר קובץ" זמני
-                const fileSelectorContainer = document.createElement('div');
-                fileSelectorContainer.id = 'file-selector-container';
-                fileSelectorContainer.style.margin = '15px 0';
-                fileSelectorContainer.appendChild(fileSelector);
-                
-                // מחיקת אלמנט בחירת קובץ קודם אם קיים
-                const existingContainer = document.getElementById('file-selector-container');
-                if (existingContainer) {
-                    existingContainer.remove();
-                }
-                
-                // הוספת אלמנט בחירת הקובץ לדף
-                logElement.parentNode.insertBefore(fileSelectorContainer, logElement);
-                
-                // קריאת הקובץ שנבחר
-                fileSelector.addEventListener('change', function(event) {
-                    const file = event.target.files[0];
-                    if (!file) {
-                        addToLog('לא נבחר קובץ');
-                        return;
-                    }
-                    
-                    addToLog(`נבחר קובץ: ${file.name}`);
-                    
-                    // קריאת הקובץ ועיבודו
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        try {
-                            const content = e.target.result;
-                            addToLog('קובץ נקרא בהצלחה');
-                            
-                            // שמירת עותק מקומי של הקובץ (Delta 1)
-                            saveLocalCopy(content, 'original_' + fileName);
-                            
-                            // עיבוד תוכן הקובץ
-                            processFileContent(content);
-                            
-                            // שמירת נתונים מעובדים (Delta 2)
-                            saveLocalCopy(JSON.stringify(allData, null, 2), 'processed_' + fileName.replace('.txt', '.json'));
-                            
-                            // הסרת אלמנט בחירת הקובץ לאחר העיבוד
-                            fileSelectorContainer.remove();
-                            
-                            // קביעת זמן הרענון הבא
-                            const intervalMinutes = parseInt(refreshIntervalInput.value, 10) || 60;
-                            nextRefreshTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
-                            updateStatus();
-                            
-                            // קביעת טיימר לרענון הבא
-                            timer = setTimeout(fetchFileContent, intervalMinutes * 60 * 1000);
-                        } catch (error) {
-                            addToLog(`שגיאה בעיבוד הקובץ: ${error.message}`);
-                        }
-                    };
-                    
-                    reader.onerror = function() {
-                        addToLog('שגיאה בקריאת הקובץ');
-                    };
-                    
-                    reader.readAsText(file);
-                });
-            }, 1000); // מתן זמן למשתמש להורדה
-        };
-        
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        
-    } catch (error) {
-        addToLog(`שגיאה כללית: ${error.message}`);
-    }
-}
 
-// פונקציה חדשה לשמירת עותק מקומי של הקובץ (Delta)
-function saveLocalCopy(content, fileName) {
-    try {
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        addToLog(`נשמר עותק מקומי: ${fileName}`);
-    } catch (error) {
-        addToLog(`שגיאה בשמירת עותק מקומי: ${error.message}`);
-    }
-}
+            // המר קישור לשיתוף לקישור ישיר להורדה
+            const fileId = fileUrl.match(/[-\w]{25,}/);
+            if (!fileId) {
+                alert("קישור לא תקין. נסה שוב.");
+                return;
+            }
+            const directLink = `https://drive.google.com/uc?export=download&id=${fileId[0]}`;
+
+            fetch(directLink)
+                .then(response => response.text())
+                .then(text => {
+                    processData(text);
+                })
+                .catch(error => alert("שגיאה בטעינת הקובץ: " + error));
+        }
+
+        function processData(text) {
+            const lines = text.split("\n").map(line => line.trim()).filter(line => line !== "");
+            const tableBody = $("#dataTable tbody");
+            tableBody.empty(); // נקה טבלה לפני הוספת נתונים חדשים
+
+            lines.forEach(line => {
+                if (line.length < 25) return; // לוודא שהשורה תקינה
+
+                const clock = line.substring(0, 3);
+                const zero = line.substring(3, 5);
+                const inOut = line.substring(5, 6);
+                const date = line.substring(6, 12);
+                const time = line.substring(12, 16);
+                const id = line.substring(16, 25);
+
+                tableBody.append(`<tr>
+                    <td>${clock}</td>
+                    <td>${zero}</td>
+                    <td>${inOut}</td>
+                    <td>${date}</td>
+                    <td>${time}</td>
+                    <td>${id}</td>
+                </tr>`);
+            });
+
+            $("#dataTable").DataTable(); // הפעלת DataTables
+        }
     </script>
+
 </body>
 </html>
