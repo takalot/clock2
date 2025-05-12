@@ -1,221 +1,53 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLOCK - דף ראשי</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-        
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
-            color: #fff;
-            overflow: hidden;
-        }
-        
-        .container {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .clock-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 7rem;
-            font-weight: 700;
-            margin-bottom: 30px;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7),
-                         0 0 20px rgba(0, 162, 255, 0.5),
-                         0 0 30px rgba(0, 162, 255, 0.3);
-            background: linear-gradient(to right, #fff, #64dfdf);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            position: relative;
-        }
-        
-        .digital-clock {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 3rem;
-            margin-bottom: 40px;
-            color: #64dfdf;
-        }
-        
-        .buttons-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .button {
-            text-decoration: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            border-radius: 50px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            z-index: 1;
-            min-width: 250px;
-            text-align: center;
-        }
-        
-        .main-button {
-            background: linear-gradient(45deg, #5e60ce, #64dfdf);
-            color: white;
-            box-shadow: 0 6px 20px rgba(100, 223, 223, 0.4);
-        }
-        
-        .main-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(100, 223, 223, 0.5);
-        }
-        
-        .main-button:active {
-            transform: translateY(1px);
-        }
-        
-        .secondary-button {
-            background: transparent;
-            border: 2px solid #64dfdf;
-            color: #64dfdf;
-        }
-        
-        .secondary-button:hover {
-            background: rgba(100, 223, 223, 0.1);
-            transform: translateY(-3px);
-        }
-        
-        .particles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-        }
-        
-        .particle {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            pointer-events: none;
-        }
-        
-        footer {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            text-align: center;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.5);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>נתוני שעון נוכחות</title>
+  <style>
+    body { font-family: Arial; direction: rtl; padding: 20px; background: #f8f8f8; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #eee; }
+  </style>
 </head>
 <body>
-<div class="buttons-container">
-    <a href="auto-refresh-google-drive.html" class="button main-button">
-        הורדה אוטומטית מ-Google Drive
-    </a>
-    <a href="secondary-page.html" class="button main-button">
-        דף משני
-    </a>
-    <a href="#" class="button secondary-button" id="about-button">
-        אודות המערכת
-    </a>
-</div>
-    
-    <div class="particles" id="particles"></div>
-    
-    <footer>
-        &copy; 2025 CLOCK System | כל הזכויות שמורות
-    </footer>
-    
-    <script>
-        // עדכון שעון דיגיטלי
-        function updateClock() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            
-            document.getElementById('digital-clock').textContent = `${hours}:${minutes}:${seconds}`;
-            
-            setTimeout(updateClock, 1000);
-        }
-        
-        // יצירת אפקט חלקיקים ברקע
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            const numberOfParticles = 50;
-            
-            for (let i = 0; i < numberOfParticles; i++) {
-                const particle = document.createElement('div');
-                particle.classList.add('particle');
-                
-                // הגדרות רנדומליות
-                const size = Math.random() * 5 + 1;
-                const posX = Math.random() * 100;
-                const posY = Math.random() * 100;
-                const opacity = Math.random() * 0.5 + 0.1;
-                const animationDuration = Math.random() * 20 + 10;
-                
-                // עיצוב החלקיק
-                particle.style.width = `${size}px`;
-                particle.style.height = `${size}px`;
-                particle.style.left = `${posX}%`;
-                particle.style.top = `${posY}%`;
-                particle.style.opacity = `${opacity}`;
-                
-                // הנפשה
-                particle.style.animation = `moveParticle ${animationDuration}s linear infinite`;
-                
-                particlesContainer.appendChild(particle);
-            }
-        }
-        
-        // הוספת אנימציה לחלקיקים
-        const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes moveParticle {
-                0% {
-                    transform: translate(0, 0);
-                }
-                25% {
-                    transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px);
-                }
-                50% {
-                    transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px);
-                }
-                75% {
-                    transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px);
-                }
-                100% {
-                    transform: translate(0, 0);
-                }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        // פעולה של כפתור האודות
-        document.getElementById('about-button').addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('מערכת CLOCK\n\nמערכת זו נועדה לאפשר הורדה אוטומטית של קבצים מ-Google Drive בפרקי זמן קבועים.\n\nפותחה ב-2025');
+  <h1>נתוני שעון נוכחות</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>מס' שעון</th>
+        <th>סוג</th>
+        <th>תאריך</th>
+        <th>שעה</th>
+        <th>ת"ז</th>
+      </tr>
+    </thead>
+    <tbody id="data-body"></tbody>
+  </table>
+
+  <script>
+    const apiUrl = "https://script.google.com/macros/s/PASTE_YOUR_SCRIPT_ID/exec"; // ← שים כאן את הכתובת שלך
+
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById("data-body");
+        data.forEach(row => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.clock}</td>
+            <td>${row.type}</td>
+            <td>${row.date}</td>
+            <td>${row.time}</td>
+            <td>${row.id}</td>
+          `;
+          tbody.appendChild(tr);
         });
-        
-        // אתחול
-        window.onload = function() {
-            updateClock();
-            createParticles();
-        };
-    </script>
+      })
+      .catch(err => {
+        document.body.innerHTML += `<p style="color:red">שגיאה בטעינת הנתונים: ${err.message}</p>`;
+      });
+  </script>
 </body>
 </html>
+
