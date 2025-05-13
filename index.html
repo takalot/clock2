@@ -1,53 +1,742 @@
-<!DOCTYPE html>
+<div id="employee-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-employee-name"></h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="employee-details">
+          <div class="detail-item">
+            <span class="detail-label">ת.ז:</span>
+            <span id="modal-employee-id"></span>
+          </div>
+        </div>
+        
+        <div class="summary-box">
+          <div class="summary-title">סיכום נתונים</div>
+          <div class="summary-stats" id="employee-stats">
+            <!-- יתמלא דינמית -->
+          </div>
+        </div>
+        
+        <h3>רשימת הנוכחות</h3>
+        <table id="employee-records" class="display" style="width:100%;">
+          <thead>
+            <tr>
+              <th>תאריך</th>
+              <th>שעה</th>
+              <th>סוג</th>
+              <th>מיקום</th>
+              <th>מספר שעון</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!DOCTYPE html>
 <html lang="he">
 <head>
   <meta charset="UTF-8">
-  <title>נתוני שעון נוכחות</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>דו"ח שעון נוכחות</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css">
   <style>
-    body { font-family: Arial; direction: rtl; padding: 20px; background: #f8f8f8; }
-    table { width: 100%; border-collapse: collapse; background: white; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #eee; }
+    :root {
+      --primary-color: #3498db;
+      --secondary-color: #2980b9;
+      --accent-color: #e74c3c;
+      --text-color: #333;
+      --light-bg: #f8f9fa;
+      --border-color: #ddd;
+      --modal-overlay: rgba(0, 0, 0, 0.5);
+    }
+    
+    body {
+      font-family: 'Rubik', Arial, sans-serif;
+      direction: rtl;
+      text-align: right;
+      padding: 0;
+      margin: 0;
+      color: var(--text-color);
+      background: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    h1 {
+      color: var(--primary-color);
+      margin: 0;
+      font-size: 1.8rem;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .search-box {
+      position: relative;
+    }
+    
+    .search-box input {
+      padding: 8px 12px 8px 30px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .search-box i {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #777;
+    }
+    
+    select, input[type="date"] {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+    
+    .btn:hover {
+      background-color: var(--secondary-color);
+    }
+    
+    .btn-accent {
+      background-color: var(--accent-color);
+    }
+    
+    .btn-accent:hover {
+      background-color: #c0392b;
+    }
+    
+    table.dataTable {
+      width: 100% !important;
+      margin: 0 !important;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    
+    table.dataTable thead th {
+      background: var(--light-bg);
+      padding: 12px 8px;
+      border-bottom: 2px solid var(--primary-color);
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    
+    table.dataTable tbody td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+    
+    table.dataTable tbody tr:hover {
+      background-color: rgba(52, 152, 219, 0.05);
+    }
+    
+    .dataTables_wrapper .dataTables_length, 
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_info, 
+    .dataTables_wrapper .dataTables_processing, 
+    .dataTables_wrapper .dataTables_paginate {
+      color: var(--text-color);
+      margin-bottom: 10px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+      border-radius: 4px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current, 
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+      background: var(--primary-color) !important;
+      color: white !important;
+      border: 1px solid var(--primary-color) !important;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+    }
+    
+    .badge-enter {
+      background-color: #2ecc71;
+      color: white;
+    }
+    
+    .badge-exit {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+    
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top: 4px solid var(--primary-color);
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error-message {
+      color: var(--accent-color);
+      text-align: center;
+      padding: 20px;
+      font-weight: bold;
+    }
+    
+    /* מודל צף */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--modal-overlay);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      margin: 50px auto;
+      max-width: 800px;
+      position: relative;
+      animation: modalFadeIn 0.3s;
+    }
+    
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .modal-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-body {
+      padding: 20px;
+    }
+    
+    .modal-close {
+      font-size: 24px;
+      color: #777;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .employee-details {
+      margin-bottom: 20px;
+    }
+    
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .detail-item:last-child {
+      border-bottom: none;
+    }
+    
+    .detail-label {
+      font-weight: bold;
+      color: var(--secondary-color);
+    }
+    
+    .employee-name {
+      cursor: pointer;
+      color: var(--primary-color);
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+    
+    .employee-name:hover {
+      color: var(--secondary-color);
+    }
+    
+    .summary-box {
+      background-color: var(--light-bg);
+      border-radius: 4px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    
+    .summary-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: var(--primary-color);
+    }
+    
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .stat-item {
+      background: white;
+      padding: 10px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--primary-color);
+      display: block;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #777;
+    }
+    
+    /* מדיה קווארי */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .controls {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .filter-group {
+        width: 100%;
+      }
+      
+      select, input[type="date"], .search-box input {
+        width: 100%;
+      }
+      
+      table.dataTable {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      
+      .modal-content {
+        margin: 20px;
+        width: auto;
+      }
+      
+      .summary-stats {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>נתוני שעון נוכחות</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>מס' שעון</th>
-        <th>סוג</th>
-        <th>תאריך</th>
-        <th>שעה</th>
-        <th>ת"ז</th>
-      </tr>
-    </thead>
-    <tbody id="data-body"></tbody>
-  </table>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h1><i class="fas fa-clock"></i> דו"ח שעון נוכחות</h1>
+        <div class="date-info" id="current-date"></div>
+      </div>
+      
+      <div class="controls">
+        <div class="filter-group">
+          <select id="filter-type">
+            <option value="">כל סוגי הרישום</option>
+            <option value="כניסה">כניסה</option>
+            <option value="יציאה">יציאה</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <select id="filter-location">
+            <option value="">כל המיקומים</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <input type="date" id="filter-date">
+        </div>
+        
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="search-input" placeholder="חיפוש...">
+        </div>
+        
+        <button class="btn" id="reset-filters">
+          <i class="fas fa-sync-alt"></i> איפוס סינון
+        </button>
+        
+        <button class="btn btn-accent" id="export-excel">
+          <i class="fas fa-file-export"></i> ייצוא לאקסל
+        </button>
+      </div>
+      
+      <div id="table-container">
+        <div class="loading" id="loading-indicator">
+          <div class="spinner"></div>
+        </div>
+        
+        <table id="attendance-table" class="display" style="width:100%; display: none;">
+          <thead>
+            <tr>
+              <th>שם</th>
+              <th>ת.ז</th>
+              <th>תאריך</th>
+              <th>שעה</th>
+              <th>סוג</th>
+              <th>מיקום</th>
+              <th>מספר שעון</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    const apiUrl = "https://script.google.com/macros/s/AKfycbxE11HK1CF8pVuntoygKJnzSC_UaIgrOgmAI-qNy5ozY-bzsmBGjxYovrSQJb8jzm_wnA/exec"; // ← שים כאן את הכתובת שלך
-
-    fetch(apiUrl)
-      .then(response => response.json())
-      .then(data => {
-        const tbody = document.getElementById("data-body");
-        data.forEach(row => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${row.clock}</td>
-            <td>${row.type}</td>
-            <td>${row.date}</td>
-            <td>${row.time}</td>
-            <td>${row.id}</td>
-          `;
-          tbody.appendChild(tr);
+    $(document).ready(function() {
+      // הצגת התאריך הנוכחי
+      const today = new Date();
+      const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+      $('#current-date').text(today.toLocaleDateString('he-IL', dateOptions));
+      
+      // מטען נתונים
+      let attendanceData = [];
+      let dataTable;
+      let locations = new Set();
+      let employeeRecordsTable;
+      
+      // טעינת נתונים
+      fetch('https://script.google.com/macros/s/PASTE_YOUR_SCRIPT_URL/exec')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('שגיאה בטעינת הנתונים');
+          }
+          return response.json();
+        })
+        .then(data => {
+          attendanceData = data;
+          
+          // איסוף רשימת המיקומים הייחודיים
+          data.forEach(item => {
+            if (item.location) {
+              locations.add(item.location);
+            }
+          });
+          
+          // מילוי רשימת המיקומים לסינון
+          const locationSelect = $('#filter-location');
+          locations.forEach(location => {
+            locationSelect.append(`<option value="${location}">${location}</option>`);
+          });
+          
+          // אתחול טבלת DataTable
+          dataTable = $('#attendance-table').DataTable({
+            data: data,
+            columns: [
+              { 
+                data: 'name',
+                render: function(data, type, row) {
+                  if (type === 'display') {
+                    return `<span class="employee-name" data-id="${row.id}" data-name="${data}">${data}</span>`;
+                  }
+                  return data;
+                }
+              },
+              { data: 'id' },
+              { 
+                data: 'date',
+                render: function(data) {
+                  // פורמט התאריך
+                  const parts = data.split('/');
+                  if (parts.length === 3) {
+                    return `${parts[0]}/${parts[1]}/${parts[2]}`;
+                  }
+                  return data;
+                }
+              },
+              { data: 'time' },
+              { 
+                data: 'type',
+                render: function(data) {
+                  if (data === 'כניסה') {
+                    return '<span class="badge badge-enter">כניסה</span>';
+                  } else if (data === 'יציאה') {
+                    return '<span class="badge badge-exit">יציאה</span>';
+                  }
+                  return data;
+                }
+              },
+              { data: 'location' },
+              { data: 'clock' }
+            ],
+            language: {
+              "sProcessing":   "מעבד...",
+              "sLengthMenu":   "הצג _MENU_ פריטים",
+              "sZeroRecords":  "לא נמצאו רשומות",
+              "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
+              "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
+              "sInfoFiltered": "(מסונן מסך הכל _MAX_ רשומות)",
+              "sSearch":       "חיפוש:",
+              "oPaginate": {
+                "sFirst":    "ראשון",
+                "sPrevious": "קודם",
+                "sNext":     "הבא",
+                "sLast":     "אחרון"
+              }
+            },
+            order: [[2, 'desc'], [3, 'desc']], // מיון לפי תאריך ואז לפי שעה בסדר יורד
+            responsive: true
+          });
+          
+          // הגדרת טבלת רשומות עובד (במודל)
+          employeeRecordsTable = $('#employee-records').DataTable({
+            language: {
+              "sProcessing":   "מעבד...",
+              "sLengthMenu":   "הצג _MENU_ פריטים",
+              "sZeroRecords":  "לא נמצאו רשומות",
+              "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
+              "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
+              "sInfoFiltered": "(מסונן מסך הכל _MAX_ רשומות)",
+              "sSearch":       "חיפוש:",
+              "oPaginate": {
+                "sFirst":    "ראשון",
+                "sPrevious": "קודם",
+                "sNext":     "הבא",
+                "sLast":     "אחרון"
+              }
+            },
+            order: [[0, 'desc'], [1, 'desc']], // מיון לפי תאריך ואז לפי שעה בסדר יורד
+            responsive: true
+          });
+          
+          // הסתרת מחוון הטעינה והצגת הטבלה
+          $('#loading-indicator').hide();
+          $('#attendance-table').show();
+          
+          // הוספת אירוע לחיצה על שם העובד
+          $('#attendance-table tbody').on('click', '.employee-name', function() {
+            const employeeId = $(this).data('id');
+            const employeeName = $(this).data('name');
+            
+            openEmployeeModal(employeeId, employeeName);
+          });
+          
+          // אירוע סגירת מודל
+          $('.modal-close').on('click', function() {
+            $('#employee-modal').hide();
+          });
+          
+          // סגירת מודל בלחיצה מחוץ לתוכן
+          $(window).on('click', function(event) {
+            const modal = $('#employee-modal')[0];
+            if (event.target === modal) {
+              $('#employee-modal').hide();
+            }
+          });
+          
+          // אירועי סינון
+          $('#search-input').on('keyup', function() {
+            dataTable.search(this.value).draw();
+          });
+          
+          $('#filter-type').on('change', function() {
+            dataTable.column(4).search(this.value).draw();
+          });
+          
+          $('#filter-location').on('change', function() {
+            dataTable.column(5).search(this.value).draw();
+          });
+          
+          $('#filter-date').on('change', function() {
+            if (this.value) {
+              // המרת פורמט התאריך לפורמט בנתונים
+              const date = new Date(this.value);
+              const day = date.getDate().toString().padStart(2, '0');
+              const month = (date.getMonth() + 1).toString().padStart(2, '0');
+              const year = date.getFullYear();
+              const formattedDate = `${day}/${month}/${year}`;
+              
+              dataTable.column(2).search(formattedDate).draw();
+            } else {
+              dataTable.column(2).search('').draw();
+            }
+          });
+          
+          $('#reset-filters').on('click', function() {
+            $('#search-input').val('');
+            $('#filter-type').val('');
+            $('#filter-location').val('');
+            $('#filter-date').val('');
+            
+            dataTable.search('').columns().search('').draw();
+          });
+          
+          // ייצוא לאקסל
+          $('#export-excel').on('click', function() {
+            // יצירת קובץ Excel
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const worksheet = XLSX.utils.json_to_sheet(filteredData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "דוח נוכחות");
+            
+            // הורדת הקובץ
+            const date = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(workbook, `דוח_נוכחות_${date}.xlsx`);
+          });
+        })
+        .catch(error => {
+          console.error('שגיאה בטעינת הנתונים:', error);
+          $('#loading-indicator').html('<div class="error-message">שגיאה בטעינת הנתונים. אנא נסה שוב מאוחר יותר.</div>');
         });
-      })
-      .catch(err => {
-        document.body.innerHTML += `<p style="color:red">שגיאה בטעינת הנתונים: ${err.message}</p>`;
-      });
+        
+      // פתיחת מודל עובד
+      function openEmployeeModal(employeeId, employeeName) {
+        // עדכון כותרת המודל
+        $('#modal-employee-name').text(employeeName);
+        $('#modal-employee-id').text(employeeId);
+        
+        // סינון רשומות של העובד
+        const employeeRecords = attendanceData.filter(record => record.id === employeeId);
+        
+        // חישוב סטטיסטיקה
+        const stats = calculateEmployeeStats(employeeRecords);
+        
+        // מילוי אזור הסטטיסטיקה
+        $('#employee-stats').html(`
+          <div class="stat-item">
+            <span class="stat-value">${stats.totalEntries}</span>
+            <span class="stat-label">כניסות</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${stats.totalExits}</span>
+            <span class="stat-label">יציאות</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${stats.uniqueDays}</span>
+            <span class="stat-label">ימים שונים</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${stats.totalLocations}</span>
+            <span class="stat-label">מיקומים</span>
+          </div>
+        `);
+        
+        // ניקוי והוספת נתונים לטבלה
+        employeeRecordsTable.clear();
+        
+        const formattedRecords = employeeRecords.map(record => {
+          return [
+            record.date,
+            record.time,
+            record.type === 'כניסה' ? 
+              '<span class="badge badge-enter">כניסה</span>' : 
+              '<span class="badge badge-exit">יציאה</span>',
+            record.location,
+            record.clock
+          ];
+        });
+        
+        employeeRecordsTable.rows.add(formattedRecords).draw();
+        
+        // הצגת המודל
+        $('#employee-modal').show();
+      }
+      
+      // חישוב סטטיסטיקה לעובד
+      function calculateEmployeeStats(records) {
+        const totalEntries = records.filter(record => record.type === 'כניסה').length;
+        const totalExits = records.filter(record => record.type === 'יציאה').length;
+        
+        // חישוב ימים ייחודיים
+        const uniqueDays = [...new Set(records.map(record => record.date))].length;
+        
+        // חישוב מיקומים ייחודיים
+        const uniqueLocations = [...new Set(records.map(record => record.location))].length;
+        
+        return {
+          totalEntries,
+          totalExits,
+          uniqueDays,
+          totalLocations: uniqueLocations
+        };
+      }
+    });
   </script>
 </body>
 </html>
-
