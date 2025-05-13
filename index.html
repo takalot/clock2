@@ -1,47 +1,13 @@
-<div id="employee-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="modal-employee-name"></h2>
-        <button class="modal-close">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="employee-details">
-          <div class="detail-item">
-            <span class="detail-label">ת.ז:</span>
-            <span id="modal-employee-id"></span>
-          </div>
-        </div>
-        
-        <div class="summary-box">
-          <div class="summary-title">סיכום נתונים</div>
-          <div class="summary-stats" id="employee-stats">
-            <!-- יתמלא דינמית -->
-          </div>
-        </div>
-        
-        <h3>רשימת הנוכחות</h3>
-        <table id="employee-records" class="display" style="width:100%;">
-          <thead>
-            <tr>
-              <th>תאריך</th>
-              <th>שעה</th>
-              <th>סוג</th>
-              <th>מיקום</th>
-              <th>מספר שעון</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>דו"ח שעון נוכחות</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css">
+  <!-- הוספת גופן רוביק למראה טוב יותר בעברית -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap">
   <style>
     :root {
       --primary-color: #3498db;
@@ -208,7 +174,7 @@
     }
     
     .badge-enter {
-      background-color: #2ecc71;
+      background-color: #D4F1DE;
       color: white;
     }
     
@@ -465,6 +431,45 @@
     </div>
   </div>
 
+  <!-- מודל פרטי עובד -->
+  <div id="employee-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-employee-name"></h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="employee-details">
+          <div class="detail-item">
+            <span class="detail-label">ת.ז:</span>
+            <span id="modal-employee-id"></span>
+          </div>
+        </div>
+        
+        <div class="summary-box">
+          <div class="summary-title">סיכום נתונים</div>
+          <div class="summary-stats" id="employee-stats">
+            <!-- יתמלא דינמית -->
+          </div>
+        </div>
+        
+        <h3>רשימת הנוכחות</h3>
+        <table id="employee-records" class="display" style="width:100%;">
+          <thead>
+            <tr>
+              <th>תאריך</th>
+              <th>שעה</th>
+              <th>סוג</th>
+              <th>מיקום</th>
+              <th>מספר שעון</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -492,6 +497,17 @@
         .then(data => {
           attendanceData = data;
           
+          // המרת פורמט התאריך בנתונים מ-DD-MM-YYYY ל-DD/MM/YYYY עבור עיבוד עקבי
+          attendanceData = attendanceData.map(item => {
+            if (item.date && item.date.includes('-')) {
+              const parts = item.date.split('-');
+              if (parts.length === 3) {
+                item.date = `${parts[0]}/${parts[1]}/${parts[2]}`;
+              }
+            }
+            return item;
+          });
+          
           // איסוף רשימת המיקומים הייחודיים
           data.forEach(item => {
             if (item.location) {
@@ -507,7 +523,7 @@
           
           // אתחול טבלת DataTable
           dataTable = $('#attendance-table').DataTable({
-            data: data,
+            data: attendanceData,
             columns: [
               { 
                 data: 'name',
@@ -521,12 +537,13 @@
               { data: 'id' },
               { 
                 data: 'date',
-                render: function(data) {
-                  // פורמט התאריך
-                  const parts = data.split('/');
-                  if (parts.length === 3) {
-                    return `${parts[0]}/${parts[1]}/${parts[2]}`;
+                render: function(data, type, row) {
+                  // שמירת התאריך המקורי עבור סינון וחיפוש
+                  if (type === 'sort' || type === 'filter') {
+                    return data;
                   }
+                  
+                  // פורמט התאריך לתצוגה
                   return data;
                 }
               },
@@ -630,19 +647,35 @@
               const day = date.getDate().toString().padStart(2, '0');
               const month = (date.getMonth() + 1).toString().padStart(2, '0');
               const year = date.getFullYear();
+              
+              // בדיקת הפורמט שבו השתמשנו בנתונים לאחר ההמרה
               const formattedDate = `${day}/${month}/${year}`;
               
-              dataTable.column(2).search(formattedDate).draw();
+              // הוספת פונקציית סינון מותאמת אישית
+              $.fn.dataTable.ext.search.push(
+                function(settings, data, dataIndex) {
+                  const rowDate = data[2]; // עמודת תאריך היא השלישית (אינדקס 2)
+                  return rowDate === formattedDate;
+                }
+              );
+              
+              dataTable.draw();
             } else {
-              dataTable.column(2).search('').draw();
+              // הסרת פונקציית הסינון המותאמת אישית אם אין תאריך
+              $.fn.dataTable.ext.search.pop();
+              dataTable.draw();
             }
           });
           
+          // איפוס כל הסינונים
           $('#reset-filters').on('click', function() {
             $('#search-input').val('');
             $('#filter-type').val('');
             $('#filter-location').val('');
             $('#filter-date').val('');
+            
+            // הסרת כל פונקציות הסינון המותאמות אישית
+            $.fn.dataTable.ext.search = [];
             
             dataTable.search('').columns().search('').draw();
           });
