@@ -174,7 +174,7 @@
     }
     
     .badge-enter {
-      background-color: #D4F1DE;
+      background-color: #2ecc71;
       color: white;
     }
     
@@ -422,6 +422,7 @@
               <th>שעה</th>
               <th>סוג</th>
               <th>מיקום</th>
+              <th>כתובת</th>
               <th>מספר שעון</th>
             </tr>
           </thead>
@@ -461,6 +462,7 @@
               <th>שעה</th>
               <th>סוג</th>
               <th>מיקום</th>
+              <th>כתובת</th>
               <th>מספר שעון</th>
             </tr>
           </thead>
@@ -487,7 +489,7 @@
       let employeeRecordsTable;
       
       // טעינת נתונים
-      fetch('https://script.google.com/macros/s/AKfycbwgdPkzY9Y6kPl_s5VF651_JcvfMd5__BY6rbwkWwkf_RUJoL7x4VQ63p_u6ceUYJpMiA/exec')
+      fetch('https://script.google.com/macros/s/PASTE_YOUR_SCRIPT_URL/exec')
         .then(response => {
           if (!response.ok) {
             throw new Error('שגיאה בטעינת הנתונים');
@@ -560,6 +562,7 @@
                 }
               },
               { data: 'location' },
+              { data: 'address' }, // הוספת עמודת כתובת
               { data: 'clock' }
             ],
             language: {
@@ -741,6 +744,7 @@
               '<span class="badge badge-enter">כניסה</span>' : 
               '<span class="badge badge-exit">יציאה</span>',
             record.location,
+            record.address, // הוספת עמודת כתובת
             record.clock
           ];
         });
