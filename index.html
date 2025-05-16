@@ -475,305 +475,321 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
- <script>
-    $(document).ready(function() {
-      // הצגת התאריך הנוכחי
-      const today = new Date();
-      const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-      $('#current-date').text(today.toLocaleDateString('he-IL', dateOptions));
+  <script>
+
+$(document).ready(function() {
+  // הצגת התאריך הנוכחי
+  const today = new Date();
+  const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+  $('#current-date').text(today.toLocaleDateString('he-IL', dateOptions));
+  
+  // מטען נתונים
+  let attendanceData = [];
+  let dataTable;
+  let locations = new Set();
+  let employeeRecordsTable;
+  
+  // טעינת נתונים
+  fetch('https://script.google.com/macros/s/AKfycbwgdPkzY9Y6kPl_s5VF651_JcvfMd5__BY6rbwkWwkf_RUJoL7x4VQ63p_u6ceUYJpMiA/exec')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('שגיאה בטעינת הנתונים');
+      }
+      return response.json();
+    })
+    .then(data => {
+      // תיקון מיוחד למקרה של "מרכז עיוורים"
+      attendanceData = data.map(item => {
+        // אם המיקום הוא "מרכז" והכתובת היא "מרכז עיוורים", נחליף ביניהם
+        if (item.location === "מרכז" && item.address === "מרכז עיוורים") {
+          return {
+            ...item,
+            location: "מרכז עיוורים",
+            address: "שדרות עוזיהו 25"
+          };
+        }
+        return item;
+      });
       
-      // מטען נתונים
-      let attendanceData = [];
-      let dataTable;
-      let locations = new Set();
-      let employeeRecordsTable;
-      
-      // טעינת נתונים
-      fetch('https://script.google.com/macros/s/AKfycbwgdPkzY9Y6kPl_s5VF651_JcvfMd5__BY6rbwkWwkf_RUJoL7x4VQ63p_u6ceUYJpMiA/exec')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('שגיאה בטעינת הנתונים');
+      // המרת פורמט התאריך בנתונים מ-DD-MM-YYYY ל-DD/MM/YYYY עבור עיבוד עקבי
+      attendanceData = attendanceData.map(item => {
+        if (item.date && item.date.includes('-')) {
+          const parts = item.date.split('-');
+          if (parts.length === 3) {
+            item.date = `${parts[0]}/${parts[1]}/${parts[2]}`;
           }
-          return response.json();
-        })
-        .then(data => {
-          attendanceData = data;
-          
-          // המרת פורמט התאריך בנתונים מ-DD-MM-YYYY ל-DD/MM/YYYY עבור עיבוד עקבי
-          attendanceData = attendanceData.map(item => {
-            if (item.date && item.date.includes('-')) {
-              const parts = item.date.split('-');
-              if (parts.length === 3) {
-                item.date = `${parts[0]}/${parts[1]}/${parts[2]}`;
-              }
-            }
-            return item;
-          });
-          
-          // איסוף רשימת המיקומים הייחודיים
-          data.forEach(item => {
-            if (item.location) {
-              locations.add(item.location);
-            }
-          });
-          
-          // מילוי רשימת המיקומים לסינון
-          const locationSelect = $('#filter-location');
-          locations.forEach(location => {
-            locationSelect.append(`<option value="${location}">${location}</option>`);
-          });
-          
-          // אתחול טבלת DataTable
-          dataTable = $('#attendance-table').DataTable({
-            data: attendanceData,
-            columns: [
-              { 
-                data: 'name',
-                render: function(data, type, row) {
-                  if (type === 'display') {
-                    return `<span class="employee-name" data-id="${row.id}" data-name="${data}">${data}</span>`;
-                  }
-                  return data;
-                }
-              },
-              { data: 'id' },
-              { 
-                data: 'date',
-                render: function(data, type, row) {
-                  // שמירת התאריך המקורי עבור סינון וחיפוש
-                  if (type === 'sort' || type === 'filter') {
-                    return data;
-                  }
-                  
-                  // פורמט התאריך לתצוגה
-                  return data;
-                }
-              },
-              { data: 'time' },
-              { 
-                data: 'type',
-                render: function(data) {
-                  if (data === 'כניסה') {
-                    return '<span class="badge badge-enter">כניסה</span>';
-                  } else if (data === 'יציאה') {
-                    return '<span class="badge badge-exit">יציאה</span>';
-                  }
-                  return data;
-                }
-              },
-              { data: 'location' },
-              { data: 'address' }, // הוספת עמודת כתובת
-              { data: 'clock' }
-            ],
-            language: {
-              "sProcessing":   "מעבד...",
-              "sLengthMenu":   "הצג _MENU_ פריטים",
-              "sZeroRecords":  "לא נמצאו רשומות",
-              "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
-              "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
-              "sInfoFiltered": "(מסונן מסך הכל _MAX_ רשומות)",
-              "sSearch":       "חיפוש:",
-              "oPaginate": {
-                "sFirst":    "ראשון",
-                "sPrevious": "קודם",
-                "sNext":     "הבא",
-                "sLast":     "אחרון"
-              }
-            },
-            order: [[2, 'desc'], [3, 'desc']], // מיון לפי תאריך ואז לפי שעה בסדר יורד
-            responsive: true
-          });
-          
-          // הגדרת טבלת רשומות עובד (במודל)
-          employeeRecordsTable = $('#employee-records').DataTable({
-            language: {
-              "sProcessing":   "מעבד...",
-              "sLengthMenu":   "הצג _MENU_ פריטים",
-              "sZeroRecords":  "לא נמצאו רשומות",
-              "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
-              "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
-              "sInfoFiltered": "(מסונן מסך הכל _MAX_ רשומות)",
-              "sSearch":       "חיפוש:",
-              "oPaginate": {
-                "sFirst":    "ראשון",
-                "sPrevious": "קודם",
-                "sNext":     "הבא",
-                "sLast":     "אחרון"
-              }
-            },
-            order: [[0, 'desc'], [1, 'desc']], // מיון לפי תאריך ואז לפי שעה בסדר יורד
-            responsive: true
-          });
-          
-          // הסתרת מחוון הטעינה והצגת הטבלה
-          $('#loading-indicator').hide();
-          $('#attendance-table').show();
-          
-          // הוספת אירוע לחיצה על שם העובד
-          $('#attendance-table tbody').on('click', '.employee-name', function() {
-            const employeeId = $(this).data('id');
-            const employeeName = $(this).data('name');
-            
-            openEmployeeModal(employeeId, employeeName);
-          });
-          
-          // אירוע סגירת מודל
-          $('.modal-close').on('click', function() {
-            $('#employee-modal').hide();
-          });
-          
-          // סגירת מודל בלחיצה מחוץ לתוכן
-          $(window).on('click', function(event) {
-            const modal = $('#employee-modal')[0];
-            if (event.target === modal) {
-              $('#employee-modal').hide();
-            }
-          });
-          
-          // אירועי סינון
-          $('#search-input').on('keyup', function() {
-            dataTable.search(this.value).draw();
-          });
-          
-          $('#filter-type').on('change', function() {
-            dataTable.column(4).search(this.value).draw();
-          });
-          
-          $('#filter-location').on('change', function() {
-            dataTable.column(5).search(this.value).draw();
-          });
-          
-          $('#filter-date').on('change', function() {
-            if (this.value) {
-              // המרת פורמט התאריך לפורמט בנתונים
-              const date = new Date(this.value);
-              const day = date.getDate().toString().padStart(2, '0');
-              const month = (date.getMonth() + 1).toString().padStart(2, '0');
-              const year = date.getFullYear();
-              
-              // בדיקת הפורמט שבו השתמשנו בנתונים לאחר ההמרה
-              const formattedDate = `${day}/${month}/${year}`;
-              
-              // הוספת פונקציית סינון מותאמת אישית
-              $.fn.dataTable.ext.search.push(
-                function(settings, data, dataIndex) {
-                  const rowDate = data[2]; // עמודת תאריך היא השלישית (אינדקס 2)
-                  return rowDate === formattedDate;
-                }
-              );
-              
-              dataTable.draw();
-            } else {
-              // הסרת פונקציית הסינון המותאמת אישית אם אין תאריך
-              $.fn.dataTable.ext.search.pop();
-              dataTable.draw();
-            }
-          });
-          
-          // איפוס כל הסינונים
-          $('#reset-filters').on('click', function() {
-            $('#search-input').val('');
-            $('#filter-type').val('');
-            $('#filter-location').val('');
-            $('#filter-date').val('');
-            
-            // הסרת כל פונקציות הסינון המותאמות אישית
-            $.fn.dataTable.ext.search = [];
-            
-            dataTable.search('').columns().search('').draw();
-          });
-          
-          // ייצוא לאקסל
-          $('#export-excel').on('click', function() {
-            // יצירת קובץ Excel
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
-            const worksheet = XLSX.utils.json_to_sheet(filteredData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "דוח נוכחות");
-            
-            // הורדת הקובץ
-            const date = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(workbook, `דוח_נוכחות_${date}.xlsx`);
-          });
-        })
-        .catch(error => {
-          console.error('שגיאה בטעינת הנתונים:', error);
-          $('#loading-indicator').html('<div class="error-message">שגיאה בטעינת הנתונים. אנא נסה שוב מאוחר יותר.</div>');
-        });
-        
-      // פתיחת מודל עובד
-      function openEmployeeModal(employeeId, employeeName) {
-        // עדכון כותרת המודל
-        $('#modal-employee-name').text(employeeName);
-        $('#modal-employee-id').text(employeeId);
-        
-        // סינון רשומות של העובד
-        const employeeRecords = attendanceData.filter(record => record.id === employeeId);
-        
-        // חישוב סטטיסטיקה
-        const stats = calculateEmployeeStats(employeeRecords);
-        
-        // מילוי אזור הסטטיסטיקה
-        $('#employee-stats').html(`
-          <div class="stat-item">
-            <span class="stat-value">${stats.totalEntries}</span>
-            <span class="stat-label">כניסות</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${stats.totalExits}</span>
-            <span class="stat-label">יציאות</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${stats.uniqueDays}</span>
-            <span class="stat-label">ימים שונים</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">${stats.totalLocations}</span>
-            <span class="stat-label">מיקומים</span>
-          </div>
-        `);
-        
-        // ניקוי והוספת נתונים לטבלה
-        employeeRecordsTable.clear();
-        
-        const formattedRecords = employeeRecords.map(record => {
-          return [
-            record.date,
-            record.time,
-            record.type === 'כניסה' ? 
-              '<span class="badge badge-enter">כניסה</span>' : 
-              '<span class="badge badge-exit">יציאה</span>',
-            record.location,
-            record.address, // הוספת עמודת כתובת
-            record.clock
-          ];
-        });
-        
-        employeeRecordsTable.rows.add(formattedRecords).draw();
-        
-        // הצגת המודל
-        $('#employee-modal').show();
-      }
+        }
+        return item;
+      });
       
-      // חישוב סטטיסטיקה לעובד
-      function calculateEmployeeStats(records) {
-        const totalEntries = records.filter(record => record.type === 'כניסה').length;
-        const totalExits = records.filter(record => record.type === 'יציאה').length;
+      // איסוף רשימת המיקומים הייחודיים
+      data.forEach(item => {
+        if (item.location) {
+          locations.add(item.location);
+        }
+      });
+      
+
+	  
+	  // מילוי רשימת המיקומים לסינון בסדר אלפביתי
+const locationSelect = $('#filter-location');
+// המרת ה-Set למערך, מיון אלפביתי והוספה לרשימה
+[...locations].sort().forEach(location => {
+  locationSelect.append(`<option value="${location}">${location}</option>`);
+});
+      
+      // אתחול טבלת DataTable - תיקון סדר עמודות המיקום והכתובת
+      dataTable = $('#attendance-table').DataTable({
+        data: attendanceData,
+        columns: [
+          { 
+            data: 'name',
+            render: function(data, type, row) {
+              if (type === 'display') {
+                return `<span class="employee-name" data-id="${row.id}" data-name="${data}">${data}</span>`;
+              }
+              return data;
+            }
+          },
+          { data: 'id' },
+          { 
+            data: 'date',
+            render: function(data, type, row) {
+              // שמירת התאריך המקורי עבור סינון וחיפוש
+              if (type === 'sort' || type === 'filter') {
+                return data;
+              }
+              
+              // פורמט התאריך לתצוגה
+              return data;
+            }
+          },
+          { data: 'time' },
+          { 
+            data: 'type',
+            render: function(data) {
+              if (data === 'כניסה') {
+                return '<span class="badge badge-enter">כניסה</span>';
+              } else if (data === 'יציאה') {
+                return '<span class="badge badge-exit">יציאה</span>';
+              }
+              return data;
+            }
+          },
+          { data: 'location' }, // מיקום
+          { data: 'address' },  // כתובת
+          { data: 'clock' }
+        ],
+        language: {
+          "sProcessing":   "מעבד...",
+          "sLengthMenu":   "הצג _MENU_ פריטים",
+          "sZeroRecords":  "לא נמצאו רשומות",
+          "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
+          "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
+          "sInfoFiltered": "(מסונן מסך הכל _MAX_ רשומות)",
+          "sSearch":       "חיפוש:",
+          "oPaginate": {
+            "sFirst":    "ראשון",
+            "sPrevious": "קודם",
+            "sNext":     "הבא",
+            "sLast":     "אחרון"
+          }
+        },
+        order: [[2, 'desc'], [3, 'desc']], // מיון לפי תאריך ואז לפי שעה בסדר יורד
+        responsive: true
+      });
+      
+      // הגדרת טבלת רשומות עובד (במודל)
+      employeeRecordsTable = $('#employee-records').DataTable({
+        language: {
+          "sProcessing":   "מעבד...",
+          "sLengthMenu":   "הצג _MENU_ פריטים",
+          "sZeroRecords":  "לא נמצאו רשומות",
+          "sInfo":         "מציג _START_ עד _END_ מתוך _TOTAL_ רשומות",
+          "sInfoEmpty":    "מציג 0 עד 0 מתוך 0 רשומות",
+          "sInfoFiltered": "(מסונן מסך הכל _MAX_ רשומות)",
+          "sSearch":       "חיפוש:",
+          "oPaginate": {
+            "sFirst":    "ראשון",
+            "sPrevious": "קודם",
+            "sNext":     "הבא",
+            "sLast":     "אחרון"
+          }
+        },
+        order: [[0, 'desc'], [1, 'desc']], // מיון לפי תאריך ואז לפי שעה בסדר יורד
+        responsive: true
+      });
+      
+      // הסתרת מחוון הטעינה והצגת הטבלה
+      $('#loading-indicator').hide();
+      $('#attendance-table').show();
+      
+      // הוספת אירוע לחיצה על שם העובד
+      $('#attendance-table tbody').on('click', '.employee-name', function() {
+        const employeeId = $(this).data('id');
+        const employeeName = $(this).data('name');
         
-        // חישוב ימים ייחודיים
-        const uniqueDays = [...new Set(records.map(record => record.date))].length;
+        openEmployeeModal(employeeId, employeeName);
+      });
+      
+      // אירוע סגירת מודל
+      $('.modal-close').on('click', function() {
+        $('#employee-modal').hide();
+      });
+      
+      // סגירת מודל בלחיצה מחוץ לתוכן
+      $(window).on('click', function(event) {
+        const modal = $('#employee-modal')[0];
+        if (event.target === modal) {
+          $('#employee-modal').hide();
+        }
+      });
+      
+      // אירועי סינון
+      $('#search-input').on('keyup', function() {
+        dataTable.search(this.value).draw();
+      });
+      
+      $('#filter-type').on('change', function() {
+        dataTable.column(4).search(this.value).draw();
+      });
+      
+      $('#filter-location').on('change', function() {
+        dataTable.column(5).search(this.value).draw();
+      });
+      
+      $('#filter-date').on('change', function() {
+        if (this.value) {
+          // המרת פורמט התאריך לפורמט בנתונים
+          const date = new Date(this.value);
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          
+          // בדיקת הפורמט שבו השתמשנו בנתונים לאחר ההמרה
+          const formattedDate = `${day}/${month}/${year}`;
+          
+          // הוספת פונקציית סינון מותאמת אישית
+          $.fn.dataTable.ext.search.push(
+            function(settings, data, dataIndex) {
+              const rowDate = data[2]; // עמודת תאריך היא השלישית (אינדקס 2)
+              return rowDate === formattedDate;
+            }
+          );
+          
+          dataTable.draw();
+        } else {
+          // הסרת פונקציית הסינון המותאמת אישית אם אין תאריך
+          $.fn.dataTable.ext.search.pop();
+          dataTable.draw();
+        }
+      });
+      
+      // איפוס כל הסינונים
+      $('#reset-filters').on('click', function() {
+        $('#search-input').val('');
+        $('#filter-type').val('');
+        $('#filter-location').val('');
+        $('#filter-date').val('');
         
-        // חישוב מיקומים ייחודיים
-        const uniqueLocations = [...new Set(records.map(record => record.location))].length;
+        // הסרת כל פונקציות הסינון המותאמות אישית
+        $.fn.dataTable.ext.search = [];
         
-        return {
-          totalEntries,
-          totalExits,
-          uniqueDays,
-          totalLocations: uniqueLocations
-        };
-      }
+        dataTable.search('').columns().search('').draw();
+      });
+      
+      // ייצוא לאקסל
+      $('#export-excel').on('click', function() {
+        // יצירת קובץ Excel
+        const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+        const worksheet = XLSX.utils.json_to_sheet(filteredData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "דוח נוכחות");
+        
+        // הורדת הקובץ
+        const date = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(workbook, `דוח_נוכחות_${date}.xlsx`);
+      });
+    })
+    .catch(error => {
+      console.error('שגיאה בטעינת הנתונים:', error);
+      $('#loading-indicator').html('<div class="error-message">שגיאה בטעינת הנתונים. אנא נסה שוב מאוחר יותר.</div>');
     });
+    
+  // פתיחת מודל עובד
+  function openEmployeeModal(employeeId, employeeName) {
+    // עדכון כותרת המודל
+    $('#modal-employee-name').text(employeeName);
+    $('#modal-employee-id').text(employeeId);
+    
+    // סינון רשומות של העובד
+    const employeeRecords = attendanceData.filter(record => record.id === employeeId);
+    
+    // חישוב סטטיסטיקה
+    const stats = calculateEmployeeStats(employeeRecords);
+    
+    // מילוי אזור הסטטיסטיקה
+    $('#employee-stats').html(`
+      <div class="stat-item">
+        <span class="stat-value">${stats.totalEntries}</span>
+        <span class="stat-label">כניסות</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${stats.totalExits}</span>
+        <span class="stat-label">יציאות</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${stats.uniqueDays}</span>
+        <span class="stat-label">ימים שונים</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${stats.totalLocations}</span>
+        <span class="stat-label">מיקומים</span>
+      </div>
+    `);
+    
+    // ניקוי והוספת נתונים לטבלה
+    employeeRecordsTable.clear();
+    
+    // תיקון סדר עמודות המיקום והכתובת במודל העובד
+    const formattedRecords = employeeRecords.map(record => {
+      return [
+        record.date,
+        record.time,
+        record.type === 'כניסה' ? 
+          '<span class="badge badge-enter">כניסה</span>' : 
+          '<span class="badge badge-exit">יציאה</span>',
+        record.location,  // מיקום
+        record.address,   // כתובת
+        record.clock
+      ];
+    });
+    
+    employeeRecordsTable.rows.add(formattedRecords).draw();
+    
+    // הצגת המודל
+    $('#employee-modal').show();
+  }
+  
+  // חישוב סטטיסטיקה לעובד
+  function calculateEmployeeStats(records) {
+    const totalEntries = records.filter(record => record.type === 'כניסה').length;
+    const totalExits = records.filter(record => record.type === 'יציאה').length;
+    
+    // חישוב ימים ייחודיים
+    const uniqueDays = [...new Set(records.map(record => record.date))].length;
+    
+    // חישוב מיקומים ייחודיים
+    const uniqueLocations = [...new Set(records.map(record => record.location))].length;
+    
+    return {
+      totalEntries,
+      totalExits,
+      uniqueDays,
+      totalLocations: uniqueLocations
+    };
+  }
+});
   </script>
 </body>
 </html>
