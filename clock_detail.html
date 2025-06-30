@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Clocks Viewer</title>
+</head>
+<body>
+  <h1>Liste des Horloges</h1>
+  <ul id="clock-list"></ul>
+
+  <script>
+    fetch('https://script.google.com/macros/s/AKfycbxaSLxjoNlOc6NOYuu4DzoK56nOdZxWmqlxOiYlkEbTWIedDbmjaYgMycluCOEXWWpsdQ/exec')
+      .then(response => response.json())
+      .then(data => {
+        const list = document.getElementById('clock-list');
+        data.forEach(clock => {
+          const li = document.createElement('li');
+          li.textContent = `${clock["מיקום"]} - ${clock["מזהה שעון"]}`;
+          list.appendChild(li);
+        });
+      })
+      .catch(error => console.error('Erreur:', error));
+  </script>
+</body>
+</html>
