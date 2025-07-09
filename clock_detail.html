@@ -10,15 +10,12 @@
 
   <script>
     fetch('https://script.google.com/macros/s/AKfycbyF17aemVxQS2LyGEzZ9aqVcOAmz6gPOINvzkFvCXameb1FmCihKQxqT0Wx-tbySOhQdQ/exec')
-      .then(response => response.json())
-      .then(data => {
-        const list = document.getElementById('clock-list');
-        data.forEach(clock => {
-          const li = document.createElement('li');
-          li.textContent = `${clock["מיקום"]} - ${clock["מזהה שעון"]}`;
-          list.appendChild(li);
-        });
-      })
+  .then(res => res.json())
+  .then(data => {
+    data.forEach(clock => {
+      console.log(clock.location + ' - ' + clock.clockId);
+    });
+  });
       .catch(error => console.error('Erreur:', error));
   </script>
 </body>
