@@ -3,35 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <title>רשימת שעונים</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <!-- Google Fonts (Rubik) -->
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500&display=swap" rel="stylesheet">
-  
-  <!-- DataTables CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-
-  <style>
-    body {
-      font-family: 'Rubik', sans-serif;
-      direction: rtl;
-      background: #f9f9f9;
-      padding: 20px;
-    }
-    h1 {
-      color: #2c3e50;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    table.dataTable {
-      width: 100% !important;
-    }
-  </style>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 </head>
-<body>
+<body style="direction: rtl; font-family: sans-serif;">
 
-  <h1>ניהול רשימת שעונים</h1>
-  <table id="clocksTable" class="display">
+  <h2>ניהול רשימת שעונים</h2>
+  <table id="clocksTable" class="display" style="width:100%">
     <thead>
       <tr>
         <th>#</th>
@@ -44,34 +23,31 @@
     <tbody></tbody>
   </table>
 
-  <!-- jQuery + DataTables -->
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <!-- Iframe caché qui chargera les données sans CORS -->
+  <iframe id="data-frame" src="https://script.google.com/macros/s/AKfycbzsQzXefgunW_9YP-V04cjiAqxm_1FSKGUZBepmIjhv4ivg9olZfsMOWfhD-xPsRXl_3Q/exec" style="display:none;"></iframe>
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxK_4aq4vXAi6-uhjF0IDrPRdvHKJG01MpqcqDg3nS-DxKZlS43ssJlyyE_6nqnKOYSNw/exec'; // 🔁 Remplace TON_URL_ICI
+    window.addEventListener("message", function(event) {
+      const data = event.data;
+
+      if (!Array.isArray(data)) return;
+
+      const table = $('#clocksTable').DataTable();
+      data.forEach(item => {
+        table.row.add([
+          item.index,
+          item.location,
+          item.clockId,
+          item.ipAddress,
+          item.address
+        ]);
+      });
+      table.draw();
+    });
 
     $(document).ready(function () {
-      fetch(GAS_URL)
-        .then(response => response.json())
-        .then(data => {
-          const table = $('#clocksTable').DataTable();
-          data.forEach(item => {
-            table.row.add([
-              item.index,
-              item.location,
-              item.clockId,
-              item.ipAddress,
-              item.address
-            ]).draw(false);
-          });
-        })
-        .catch(error => {
-          alert('שגיאה בטעינת הנתונים');
-          console.error(error);
-        });
+      $('#clocksTable').DataTable();
     });
   </script>
-
 </body>
 </html>
