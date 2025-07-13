@@ -1,53 +1,248 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>רשימת שעונים</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Données de la Feuille</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl; /* Pour l'hébreu */
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        #data-table_wrapper {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        #data-table th, #data-table td {
+            text-align: right; /* Pour l'hébreu */
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        #data-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        #data-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        .edit-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .edit-btn:hover {
+            background-color: #0056b3;
+        }
+        .save-btn, .cancel-btn {
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 5px;
+        }
+        .save-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .save-btn:hover {
+            background-color: #218838;
+        }
+        .cancel-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .cancel-btn:hover {
+            background-color: #c82333;
+        }
+        td.editable input {
+            width: 90%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .loading-message {
+            text-align: center;
+            font-size: 1.2em;
+            color: #555;
+            margin-top: 50px;
+        }
+    </style>
 </head>
-<body style="direction: rtl; font-family: sans-serif;">
+<body>
 
-  <h2>ניהול רשימת שעונים</h2>
-  <table id="clocksTable" class="display" style="width:100%">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>מיקום</th>
-        <th>מספר שעון</th>
-        <th>IP</th>
-        <th>כתובת</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <h1>ניהול נתוני גיליון</h1>
 
-  <!-- Iframe caché qui chargera les données sans CORS -->
-  <iframe id="data-frame" src="https://script.google.com/macros/s/AKfycbzsQzXefgunW_9YP-V04cjiAqxm_1FSKGUZBepmIjhv4ivg9olZfsMOWfhD-xPsRXl_3Q/exec" style="display:none;"></iframe>
+    <p class="loading-message" id="loadingMessage">טוען נתונים...</p>
 
-  <script>
-    window.addEventListener("message", function(event) {
-      const data = event.data;
+    <table id="data-table" class="display" style="width:100%; display:none;">
+        <thead>
+            <tr>
+                <th>נומרציה</th>
+                <th>שם</th>
+                <th>ID</th>
+                <th>IP</th>
+                <th>כתובת</th>
+                <th>פעולות</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
 
-      if (!Array.isArray(data)) return;
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script>
+        // REMPLACER PAR L'URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxaImDMOfTQecxTT5zvwNuuqbld9w_wEjIowsM1-IM2LD2mE_6U2d_UmniDE9XGmqUr4Q/exec"; 
 
-      const table = $('#clocksTable').DataTable();
-      data.forEach(item => {
-        table.row.add([
-          item.index,
-          item.location,
-          item.clockId,
-          item.ipAddress,
-          item.address
-        ]);
-      });
-      table.draw();
-    });
+        let dataTable; // Variable globale pour la table DataTables
+        let originalRowData = {}; // Pour stocker les données originales lors de l'édition
 
-    $(document).ready(function () {
-      $('#clocksTable').DataTable();
-    });
-  </script>
+        // Fonction pour charger les données
+        function loadData() {
+            $('#loadingMessage').show();
+            $('#data-table').hide();
+
+            $.ajax({
+                url: WEB_APP_URL,
+                type: "GET",
+                dataType: "json",
+                success: function(data) {
+                    $('#loadingMessage').hide();
+                    $('#data-table').show();
+
+                    if (dataTable) {
+                        dataTable.destroy(); // Détruire l'instance existante si elle existe
+                    }
+
+                    dataTable = $('#data-table').DataTable({
+                        data: data,
+                        columns: [
+                            { data: 'numerotation', title: 'נומרציה' },
+                            { data: 'nom', title: 'שם' },
+                            { data: 'id', title: 'ID' },
+                            { data: 'ip', title: 'IP' },
+                            { data: 'adresse', title: 'כתובת' },
+                            {
+                                data: null,
+                                title: 'פעולות',
+                                orderable: false,
+                                render: function (data, type, row) {
+                                    return `<button class="edit-btn" data-row-index="${row.row_index}">ערוך</button>`;
+                                }
+                            }
+                        ],
+                        // Configuration pour l'affichage en RTL
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/he.json' // Fichier de traduction hébreu
+                        }
+                    });
+                },
+                error: function(xhr, status, error) {
+                    $('#loadingMessage').text('שגיאה בטעינת הנתונים: ' + error);
+                    console.error("Erreur lors du chargement des données:", error);
+                }
+            });
+        }
+
+        // Gérer le clic sur le bouton "ערוך"
+        $('#data-table tbody').on('click', '.edit-btn', function() {
+            const rowElement = $(this).closest('tr');
+            const rowData = dataTable.row(rowElement).data();
+
+            // Stocker les données originales en cas d'annulation
+            originalRowData = { ...rowData }; 
+
+            // Rendre les cellules éditables (sauf la colonne des actions)
+            rowElement.find('td').each(function(colIndex) {
+                if (colIndex < dataTable.columns().count() - 1) { // Ne pas rendre la dernière colonne (actions) éditable
+                    const text = $(this).text();
+                    $(this).html(`<input type="text" value="${text}">`).addClass('editable');
+                }
+            });
+
+            // Remplacer le bouton "ערוך" par "שמור" et "בטל"
+            $(this).replaceWith(`
+                <button class="save-btn" data-row-index="${rowData.row_index}">שמור</button>
+                <button class="cancel-btn" data-row-index="${rowData.row_index}">בטל</button>
+            `);
+        });
+
+        // Gérer le clic sur le bouton "שמור"
+        $('#data-table tbody').on('click', '.save-btn', function() {
+            const button = $(this);
+            const rowElement = button.closest('tr');
+            const rowIndex = button.data('row-index');
+            const cells = rowElement.find('td.editable input');
+
+            const newData = {
+                rowIndex: rowIndex,
+                numerotation: cells.eq(0).val(),
+                nom: cells.eq(1).val(),
+                id: cells.eq(2).val(),
+                ip: cells.eq(3).val(),
+                adresse: cells.eq(4).val()
+            };
+
+            // Envoyer les données modifiées au Google Apps Script (via doPost)
+            $.ajax({
+                url: WEB_APP_URL,
+                type: "POST", // Utilisation de POST pour la modification
+                contentType: "application/json",
+                data: JSON.stringify(newData),
+                success: function(response) {
+                    if (response.success) {
+                        alert('הנתונים נשמרו בהצלחה!'); // Données enregistrées avec succès!
+                        loadData(); // Recharger les données pour rafraîchir le tableau
+                    } else {
+                        alert('שגיאה בשמירת הנתונים: ' + response.message); // Erreur lors de l'enregistrement
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('שגיאה בתקשורת עם השרת: ' + error); // Erreur de communication avec le serveur
+                    console.error("Erreur lors de la mise à jour:", error);
+                    // En cas d'erreur, restaurer l'état original
+                    restoreRow(rowElement, originalRowData);
+                }
+            });
+        });
+
+        // Gérer le clic sur le bouton "בטל"
+        $('#data-table tbody').on('click', '.cancel-btn', function() {
+            const rowElement = $(this).closest('tr');
+            restoreRow(rowElement, originalRowData);
+        });
+
+        // Fonction pour restaurer la ligne à son état original
+        function restoreRow(rowElement, data) {
+            // Mettre à jour la ligne dans DataTables
+            dataTable.row(rowElement).data(data).draw();
+            // Assurez-vous que les boutons d'édition reviennent
+            $(rowElement).find('.save-btn, .cancel-btn').remove();
+            $(rowElement).find('td:last-child').html(`<button class="edit-btn" data-row-index="${data.row_index}">ערוך</button>`);
+            $(rowElement).find('td.editable').removeClass('editable');
+        }
+
+
+        // Charger les données au démarrage de la page
+        loadData();
+    </script>
+
 </body>
 </html>
