@@ -109,7 +109,8 @@
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script>
         // REMPLACER PAR L'URL DE VOTRE APPLICATION WEB GOOGLE APPS SCRIPT
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxaImDMOfTQecxTT5zvwNuuqbld9w_wEjIowsM1-IM2LD2mE_6U2d_UmniDE9XGmqUr4Q/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx3krgLhBkW5zmzg7tOmQxnd6UhXBxI9b_7LI-FgdftjPYugXE4-XH8P1udXX_nrSHs/exec";
+		
 
         let dataTable; // Variable globale pour la table DataTables
         let originalRowData = {}; // Pour stocker les données originales lors de l'édition
@@ -191,6 +192,7 @@
             const rowIndex = button.data('row-index');
             const cells = rowElement.find('td.editable input');
 
+            // --- CHANGEMENT ICI : Préparer les données pour un format de formulaire ---
             const newData = {
                 rowIndex: rowIndex,
                 numerotation: cells.eq(0).val(),
@@ -203,9 +205,10 @@
             // Envoyer les données modifiées au Google Apps Script (via doPost)
             $.ajax({
                 url: WEB_APP_URL,
-                type: "POST", // Utilisation de POST pour la modification
-                contentType: "application/json",
-                data: JSON.stringify(newData),
+                type: "POST", 
+                // --- CHANGEMENT ICI : Supprimer contentType: "application/json" ---
+                // Data sera automatiquement encodé comme application/x-www-form-urlencoded par jQuery
+                data: newData, // Envoyer l'objet directement
                 success: function(response) {
                     if (response.success) {
                         alert('הנתונים נשמרו בהצלחה!'); // Données enregistrées avec succès!
@@ -238,7 +241,6 @@
             $(rowElement).find('td:last-child').html(`<button class="edit-btn" data-row-index="${data.row_index}">ערוך</button>`);
             $(rowElement).find('td.editable').removeClass('editable');
         }
-
 
         // Charger les données au démarrage de la page
         loadData();
